@@ -1,0 +1,14 @@
+{
+  "name": "places_search",
+  "description": "Stub implementation for places_search.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}

@@ -1,0 +1,12 @@
+# Workshop-Web .dockerignore
+node_modules
+.next
+.cache
+.env
+.env.*
+!.env.example
+*.log
+coverage
+.nyc_output
+dist
+.turbo

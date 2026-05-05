@@ -1,0 +1,253 @@
+# =============================================================================
+# Project Rain — Full-Stack Orchestration
+# =============================================================================
+# Start everything:
+#   docker compose up -d                        # postgres + redis only
+#   docker compose --profile phase2 up -d       # + qdrant + minio
+#   docker compose --profile all up -d          # + rain-api + workshop-web + code-server
+#   docker compose --profile all --profile tools up -d  # + searxng
+#
+# Local dev (infra only, apps via bun):
+#   docker compose -f docker-compose.dev.yml up -d
+#   ./dev.sh
+# =============================================================================
+
+x-restart-policy: &restart unless-stopped
+
+x-healthcheck-defaults: &hc-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
+
+x-datastore-env: &datastore-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: rain
+  POSTGRES_USER: rain
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rain}
+  REDIS_URL: redis://redis:6379/0
+  QDRANT_URL: http://qdrant:6333
+  MINIO_ENDPOINT: minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-rain}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-rainminio}
+
+services:
+
+  # --- DATASTORES ---
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: rain-postgres
+    restart: *restart
+    environment:
+      POSTGRES_DB: rain
+      POSTGRES_USER: rain
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rain}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    command:
+      - "postgres"
+      - "-c" "shared_buffers=256MB"
+      - "-c" "effective_cache_size=768MB"
+      - "-c" "work_mem=16MB"
+      - "-c" "maintenance_work_mem=64MB"
+      - "-c" "max_connections=50"
+      - "-c" "wal_buffers=8MB"
+      - "-c" "checkpoint_completion_target=0.9"
+      - "-c" "random_page_cost=1.1"
+      - "-c" "log_min_duration_statement=500"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    mem_limit: 1536m
+    mem_reservation: 512m
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD-SHELL", "pg_isready -U rain -d rain"]
+    networks:
+      - rain-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: rain-redis
+    restart: *restart
+    command:
+      - "redis-server"
+      - "--maxmemory" "384mb"
+      - "--maxmemory-policy" "allkeys-lru"
+      - "--appendonly" "no"
+      - "--save" ""
+    ports:
+      - "127.0.0.1:6379:6379"
+    mem_limit: 512m
+    mem_reservation: 128m
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD", "redis-cli", "ping"]
+    networks:
+      - rain-net
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: rain-qdrant
+    profiles: ["phase2", "all"]
+    restart: *restart
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER: 2
+      QDRANT__STORAGE__OPTIMIZERS__MAX_OPTIMIZATION_THREADS: 1
+      QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS: 2
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    mem_limit: 1536m
+    mem_reservation: 512m
+    healthcheck:
+      <<: *hc-defaults
+      start_period: 30s
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' || exit 1"]
+    networks:
+      - rain-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: rain-minio
+    profiles: ["phase2", "all"]
+    restart: *restart
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-rain}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-rainminio}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    mem_limit: 512m
+    mem_reservation: 128m
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+    networks:
+      - rain-net
+
+  # --- APPLICATION SERVICES ---
+
+  rain-api:
+    build:
+      context: .
+      dockerfile: apps/rain-api/Dockerfile
+    container_name: rain-api
+    profiles: ["all"]
+    restart: *restart
+    environment:
+      <<: *datastore-env
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      RAIN_ENV: production
+    volumes:
+      - sandboxes:/app/sandboxes
+    ports:
+      - "127.0.0.1:8000:8000"
+    mem_limit: 2048m
+    mem_reservation: 512m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      <<: *hc-defaults
+      start_period: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    networks:
+      - rain-net
+
+  workshop-web:
+    build:
+      context: .
+      dockerfile: apps/workshop-web/Dockerfile
+    container_name: rain-workshop-web
+    profiles: ["all"]
+    restart: *restart
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_CODE_SERVER_URL: http://localhost:8080
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3000:3000"
+    mem_limit: 1024m
+    mem_reservation: 256m
+    depends_on:
+      - rain-api
+    healthcheck:
+      <<: *hc-defaults
+      start_period: 20s
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+    networks:
+      - rain-net
+
+  code-server:
+    build:
+      context: .docker/code-server
+      dockerfile: Dockerfile
+    container_name: rain-code-server
+    profiles: ["all"]
+    restart: *restart
+    environment:
+      PASSWORD: ""
+      DOCKER_USER: coder
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - sandboxes:/home/coder/sandboxes
+      - code_server_config:/home/coder/.config
+      - code_server_extensions:/home/coder/.local/share/code-server/extensions
+    mem_limit: 2048m
+    mem_reservation: 512m
+    networks:
+      - rain-net
+
+  # --- SKILLS INFRASTRUCTURE ---
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: rain-searxng
+    profiles: ["tools"]
+    restart: *restart
+    environment:
+      SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    ports:
+      - "127.0.0.1:8081:8080"
+    mem_limit: 512m
+    mem_reservation: 128m
+    healthcheck:
+      <<: *hc-defaults
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+    networks:
+      - rain-net
+
+networks:
+  rain-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  minio_data:
+  sandboxes:
+    driver: local
+    name: rain-sandboxes
+  code_server_config:
+    name: rain-code-server-config
+  code_server_extensions:
+    name: rain-code-server-extensions

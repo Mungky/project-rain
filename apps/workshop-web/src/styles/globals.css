@@ -1,0 +1,205 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@import "katex/dist/katex.min.css";
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+@theme {
+  --color-ink-50: #ffffff;
+  --color-ink-100: #f2f2f2;
+  --color-ink-200: #e5e5e5;
+  --color-ink-300: #d4d4d4;
+  --color-ink-400: #a3a3a3;
+  --color-ink-500: #737373;
+  --color-ink-600: #525252;
+  --color-ink-700: #404040;
+  --color-ink-800: #262626;
+  --color-ink-900: #171717;
+  --color-ink-950: #000000;
+  --color-storm-400: #a3a3a3;
+  --color-storm-500: #000000;
+  --color-storm-600: #171717;
+  --color-storm-700: #262626;
+  --color-rain-300: #d4d4d4;
+  --color-rain-400: #737373;
+  --color-rain-500: #404040;
+  --color-warm-400: #e5e5e5;
+  --color-warm-500: #d4d4d4;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --font-feature-settings: "cv11", "ss01", "tnum";
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: var(--font-feature-settings);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Prose / Typography ────────────────────────────────────────────────────── */
+
+.prose-rain {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.65;
+  color: #e5e5e5;
+}
+
+.prose-rain h1 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 1rem; letter-spacing: -0.02em; }
+.prose-rain h2 { font-size: 1.25rem; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.75rem; letter-spacing: -0.01em; }
+.prose-rain h3 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
+.prose-rain h4, .prose-rain h5, .prose-rain h6 { font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.5rem; }
+
+.prose-rain p { margin-bottom: 0.75rem; }
+.prose-rain p:last-child { margin-bottom: 0; }
+
+/* Blockquotes */
+.prose-rain blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.15);
+  padding: 12px 16px;
+  margin: 1rem 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0 8px 8px 0;
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.6);
+}
+.prose-rain blockquote p:last-child { margin-bottom: 0; }
+
+/* Lists */
+.prose-rain ul, .prose-rain ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+.prose-rain li { margin-bottom: 0.25rem; }
+.prose-rain li > ul, .prose-rain li > ol { margin-top: 0.25rem; margin-bottom: 0; padding-left: 1.25rem; }
+
+/* Nested list depth — up to 4 levels */
+.prose-rain ul ul ul ul,
+.prose-rain ol ol ol ol { padding-left: 1rem; font-size: 0.95em; }
+
+/* Definition lists */
+.prose-rain dl { margin: 1rem 0; }
+.prose-rain dt { font-weight: 700; margin-top: 0.75rem; color: rgba(255, 255, 255, 0.9); }
+.prose-rain dd { margin-left: 1rem; margin-top: 0.25rem; color: rgba(255, 255, 255, 0.55); }
+.prose-rain dd + dt { margin-top: 0.75rem; }
+.prose-rain dd p { margin-bottom: 0.25rem; }
+
+/* Tables */
+.prose-rain table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
+.prose-rain thead { position: sticky; top: 0; z-index: 1; }
+.prose-rain th {
+  text-align: left;
+  padding: 10px 16px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: default;
+  user-select: none;
+}
+.prose-rain td { padding: 8px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.prose-rain tr:nth-child(even) td { background: rgba(255, 255, 255, 0.02); }
+.prose-rain tr:hover td { background: rgba(255, 255, 255, 0.04); }
+
+/* Task list checkboxes */
+.prose-rain input[type="checkbox"] {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  margin-right: 0.5rem;
+  vertical-align: -2px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+}
+.prose-rain input[type="checkbox"]:checked {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.prose-rain input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 7px;
+  border: solid rgba(255, 255, 255, 0.7);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+/* Code blocks — line numbers via CSS counters */
+.prose-rain pre[data-line-numbers="true"] code {
+  counter-reset: line;
+}
+.prose-rain pre[data-line-numbers="true"] .linenumber::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.2);
+  user-select: none;
+}
+
+/* KaTeX fallback */
+.katex-error {
+  color: #ef4444 !important;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: rgba(239, 68, 68, 0.08);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px dashed rgba(239, 68, 68, 0.3);
+}
+.katex-display { overflow-x: auto; overflow-y: hidden; }
+
+/* Subtle text elements */
+.prose-rain abbr[title] {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+.prose-rain sup, .prose-rain sub { font-size: 0.75em; }
+.prose-rain details { margin: 0.75rem 0; }
+.prose-rain summary { cursor: pointer; font-weight: 600; }
+.prose-rain details[open] summary { margin-bottom: 0.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse-bar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}

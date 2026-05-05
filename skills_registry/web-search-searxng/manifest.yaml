@@ -1,0 +1,22 @@
+name: web-search-searxng
+version: "1.0.0"
+description: "Search the web via SearXNG (aggregates Google, Bing, DuckDuckGo, Wikipedia). Returns structured results with title, URL, and snippet. Use for finding current information, news, facts, or any topic requiring web research."
+runtime: python3.11
+entry: handler.py:handle
+permissions:
+  network: true
+  filesystem: false
+  duration_seconds_max: 15
+inputs:
+  query:
+    type: string
+    description: "The search query. Be specific for better results."
+    required: true
+  max_results:
+    type: integer
+    description: "Maximum number of results to return (1-15). Default is 8."
+    default: 8
+outputs:
+  results:
+    type: array
+    description: "List of search results with title, url, snippet, and source engine."

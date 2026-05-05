@@ -1,0 +1,28 @@
+name: web-reader
+version: "1.0.0"
+description: "Fetch and read the full text content of any webpage given its URL. Use this AFTER web-search-searxng to read the full article/page content for deep research, scraping data, or summarization. Returns clean extracted text without HTML."
+runtime: python3.11
+entry: handler.py:handle
+permissions:
+  network: true
+  filesystem: false
+  duration_seconds_max: 20
+inputs:
+  url:
+    type: string
+    description: "The full URL of the page to read (must start with http:// or https://)."
+    required: true
+  max_chars:
+    type: integer
+    description: "Maximum characters to return. Default 6000. Increase for longer documents."
+    default: 6000
+outputs:
+  title:
+    type: string
+    description: "Page title"
+  content:
+    type: string
+    description: "Extracted plain text content"
+  char_count:
+    type: integer
+    description: "Total characters extracted before truncation"

@@ -1,0 +1,14 @@
+{
+  "name": "web_search",
+  "description": "Stub implementation for web_search.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}

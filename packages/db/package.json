@@ -1,0 +1,17 @@
+{
+  "name": "db",
+  "version": "1.0.0",
+  "description": "Visual database access for Project Rain",
+  "scripts": {
+    "dev": "NODE_COMPILE_CACHE=0 dotenv -e prisma/.env -- prisma studio",
+    "build": "echo 'No build step'",
+    "lint": "echo 'No lint step'"
+  },
+  "dependencies": {
+    "prisma": "4.16.2",
+    "@prisma/client": "4.16.2"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "show_widget",
+  "description": "Stub implementation for show_widget.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}

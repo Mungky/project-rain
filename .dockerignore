@@ -1,0 +1,39 @@
+# Root .dockerignore — exclude everything not needed for Docker builds
+node_modules
+.git
+.cache
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.pyc
+__pycache__
+.env
+.env.*
+!.env.example
+*.log
+dist
+.turbo
+.next
+coverage
+.nyc_output
+.vscode
+.idea
+# Docker
+Dockerfile*
+.docker
+docker-compose*.yml
+# OS
+.DS_Store
+Thumbs.db
+# Docs
+*.md
+!CLAUDE.md
+# Python
+*.egg-info
+.venv
+venv
+# Bun
+bun.lock
+# Test artifacts
+test-results
+playwright-report

@@ -1,0 +1,16 @@
+[project]
+name = "project-rain"
+version = "0.1.0"
+description = "Project Rain — Monorepo"
+requires-python = ">=3.11"
+
+[tool.uv.workspace]
+members = [
+    "apps/rain-api",
+    "packages/db",
+    "packages/rain_brain",
+    "packages/brain_mcp",
+]
+
+[dependency-groups]
+dev = []

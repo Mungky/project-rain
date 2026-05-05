@@ -1,0 +1,36 @@
+{
+  "$schema": "https://onlook.dev/schema/components.json",
+  "version": "0.1.0",
+  "components": {
+    "Button": {
+      "path": "ui/button.tsx",
+      "props": {
+        "variant": { "type": "enum", "values": ["primary", "secondary", "ghost"], "default": "primary" },
+        "size": { "type": "enum", "values": ["sm", "md", "lg"], "default": "md" },
+        "disabled": { "type": "boolean", "default": false },
+        "children": { "type": "string", "default": "Button" }
+      }
+    },
+    "Input": {
+      "path": "ui/input.tsx",
+      "props": {
+        "placeholder": { "type": "string", "default": "" },
+        "type": { "type": "enum", "values": ["text", "email", "password", "number"], "default": "text" },
+        "disabled": { "type": "boolean", "default": false }
+      }
+    },
+    "GlassPanel": {
+      "path": "identity/glass-panel.tsx",
+      "props": {
+        "variant": { "type": "enum", "values": ["default", "elevated", "subtle"], "default": "default" }
+      }
+    },
+    "ChatMessage": {
+      "path": "chat/message-bubble.tsx",
+      "props": {
+        "role": { "type": "enum", "values": ["user", "assistant", "system"], "default": "assistant" },
+        "content": { "type": "string", "default": "" }
+      }
+    }
+  }
+}

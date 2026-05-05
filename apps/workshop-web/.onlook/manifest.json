@@ -1,0 +1,26 @@
+{
+  "name": "Rain Workshop IDE",
+  "version": "0.1.0",
+  "description": "Visual Operating System for Software — desain sistem, bukan sekadar produk.",
+  "main": "src/app/layout.tsx",
+  "framework": "nextjs",
+  "styling": "tailwind",
+  "components": {
+    "registry": ".onlook/components.json",
+    "basePath": "src/components"
+  },
+  "features": {
+    "visualEditing": true,
+    "codeGeneration": true,
+    "groundTruthSync": true,
+    "webcontainer": true
+  },
+  "workshop": {
+    "schemaVersion": "0.1.0",
+    "nodeLimits": {
+      "maxNodes": 500,
+      "maxEdges": 1000
+    },
+    "roles": ["survey", "codegen", "review", "architect_advisor"]
+  }
+}

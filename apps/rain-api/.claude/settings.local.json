@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python -m pytest tests/unit/test_datetime_awareness.py -v)",
+      "Bash(.venv/Scripts/pip install *)",
+      "Bash(.venv/Scripts/python.exe -m pip install pytest pytest-asyncio pytest-httpx -q)",
+      "Bash(which uv *)",
+      "Bash(where uv *)",
+      "Bash(uv sync *)",
+      "Bash(uv run *)",
+      "Bash(uv pip *)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/unit/test_datetime_awareness.py -v)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v)",
+      "Bash(pip show *)",
+      "Bash(python -c \"import qdrant_client; print\\(qdrant_client.__version__\\)\")",
+      "Bash(python -c \"from qdrant_client import AsyncQdrantClient; print\\('AsyncQdrantClient available'\\)\")",
+      "Bash(python *)",
+      "Bash(.venv/Scripts/python.exe -c \"from minio import Minio; print\\('Minio available'\\); print\\([m for m in dir\\(Minio\\) if not m.startswith\\('_'\\) and 'put' in m.lower\\(\\) or 'bucket' in m.lower\\(\\)]\\)\")",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/unit/test_document_service.py -v)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/unit/test_document_service.py -v --tb=short)",
+      "Bash(.venv/Scripts/python.exe -c \"import multipart; print\\(f'python-multipart version: {multipart.__version__}'\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"from rain_backend.main import app; print\\('Backend starts OK:', app.title\\)\")"
+    ]
+  }
+}

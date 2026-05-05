@@ -1,0 +1,33 @@
+# /db/qdrant_collections.yaml
+# Single source of truth for Qdrant collection definitions.
+# Backend reads this at startup and ensures collections exist.
+# Vector size must match the embedding model in use (Contract 4).
+#
+# Embedding model: nomic-embed-text (Ollama, default) → 768 dimensions
+
+collections:
+  - name: documents
+    description: User-uploaded document chunks for RAG.
+    vector_size: 768                    # nomic-embed-text dimensions
+    distance: Cosine                    # text similarity
+    on_disk: true                       # vectors on disk, indices in RAM (low-RAM friendly)
+    quantization:
+      scalar:
+        type: int8                      # 4x memory savings, minor recall hit
+        always_ram: true                # quantized version stays in RAM
+    payload_schema:
+      user_id:
+        type: keyword
+        index: true                     # filterable
+      document_id:
+        type: keyword
+        index: true                     # group chunks of one document
+      chunk_index:
+        type: integer
+        index: false                    # fetch by ID, never filter
+      text:
+        type: text
+        index: false                    # store but don't index (saves space)
+      source:
+        type: keyword
+        index: true                     # filterable by filename/URL

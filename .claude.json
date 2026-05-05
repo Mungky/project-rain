@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "rain-brain": {
+      "command": "uv",
+      "args": ["run", "--package", "brain-mcp", "python", "-m", "brain_mcp.server"],
+      "cwd": "."
+    }
+  }
+}

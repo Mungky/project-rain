@@ -1,0 +1,14 @@
+{
+  "name": "web_fetch",
+  "description": "Stub implementation for web_fetch.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}

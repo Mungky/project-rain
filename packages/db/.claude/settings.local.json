@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma *)",
+      "Bash(docker exec rain-postgres *)",
+      "Bash(docker compose *)",
+      "Bash(docker start rain-qdrant *)",
+      "Bash(docker exec *)",
+      "Bash(docker restart rain-qdrant *)",
+      "Bash(python -m json.tool)",
+      "Bash(alembic upgrade *)",
+      "Bash(pip list *)",
+      "Bash(alembic current *)",
+      "Bash(alembic heads *)",
+      "Bash(alembic history *)",
+      "Bash(alembic downgrade *)"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+[project]
+name = "brain-mcp"
+version = "0.1.0"
+description = "MCP Server exposing Rain Brain as Single Source of Truth for external agents"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.6.0",
+    "sqlalchemy>=2.0",
+    "asyncpg>=0.29.0",
+    "qdrant-client>=1.6.0",
+    "minio>=7.2.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "rain-brain",
+    "rain-db",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.uv.sources]
+rain-brain = { workspace = true }
+rain-db = { workspace = true }

@@ -1,0 +1,22 @@
+name: document-search
+version: "1.0.0"
+description: "Search the Neural Archive and Knowledge Base for relevant documents and context entries using semantic similarity. Use when the user asks about something that might be in their uploaded files, past knowledge, or stored context. Returns the most relevant text chunks."
+runtime: python3.11
+entry: handler.py:handle
+permissions:
+  network: true
+  filesystem: false
+  duration_seconds_max: 15
+inputs:
+  query:
+    type: string
+    description: "What to search for. Use natural language — semantic search will find related content even if exact words don't match."
+    required: true
+  limit:
+    type: integer
+    description: "Maximum number of results to return (1-10). Default is 5."
+    default: 5
+outputs:
+  results:
+    type: array
+    description: "List of matching chunks with source, text, and relevance score."

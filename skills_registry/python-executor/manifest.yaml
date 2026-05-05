@@ -1,0 +1,28 @@
+name: python-executor
+version: "1.0.0"
+description: "Execute Python code and return the output. Use for calculations, data processing, string manipulation, sorting, statistics, date math, unit conversion, or any task that benefits from running actual code instead of guessing. Always print() the result you want returned."
+runtime: python3.11
+entry: handler.py:handle
+permissions:
+  network: false
+  filesystem: true
+  duration_seconds_max: 30
+inputs:
+  code:
+    type: string
+    description: "Valid Python code to execute. Use print() to output results. Has access to stdlib. No external packages guaranteed."
+    required: true
+  timeout:
+    type: integer
+    description: "Max seconds to run. Default 10, max 30."
+    default: 10
+outputs:
+  stdout:
+    type: string
+    description: "Standard output from the code"
+  stderr:
+    type: string
+    description: "Error output if any"
+  returncode:
+    type: integer
+    description: "Exit code (0 = success)"

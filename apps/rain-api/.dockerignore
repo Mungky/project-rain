@@ -1,0 +1,12 @@
+# Rain-API .dockerignore
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.venv
+venv
+*.egg-info
+.env
+*.log
+.pth

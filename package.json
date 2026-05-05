@@ -1,0 +1,26 @@
+{
+  "name": "project-rain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "skills": "./skills-cli.js"
+  },
+  "packageManager": "bun@1.3.12",
+  "scripts": {
+    "dev": "bunx turbo run dev",
+    "build": "bunx turbo run build",
+    "lint": "bunx turbo run lint"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "commander": "^12.0.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "turbo": "latest"
+  }
+}

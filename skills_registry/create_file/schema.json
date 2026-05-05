@@ -1,0 +1,14 @@
+{
+  "name": "create_file",
+  "description": "Stub implementation for create_file.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "str_replace",
+  "description": "Stub implementation for str_replace.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}

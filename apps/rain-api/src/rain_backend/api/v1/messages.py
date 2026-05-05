@@ -1,0 +1,85 @@
+"""Chat streaming endpoints."""
+
+import logging
+from uuid import UUID
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
+from qdrant_client import AsyncQdrantClient
+from rain_backend.api.deps import get_db, get_db_engine, get_providers, get_qdrant, get_minio
+from db.schemas.dto_conversation import ConversationPathParams, MessageFeedbackRequest, Message
+from db.schemas.dto_chat import PostMessageRequest
+from rain_brain.providers.base import ChatChunk
+from rain_brain.streaming.sse import to_sse
+from rain_brain.orchestrator.chat_mode import run_chat
+from rain_brain.services.message_service import MessageService
+
+
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["messages"])
+
+
+@router.put("/messages/{message_id}/feedback", response_model=Message)
+async def put_message_feedback(
+    message_id: UUID,
+    body: MessageFeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Message:
+    """Update feedback for a message."""
+    service = MessageService(db)
+    message = await service.update_feedback(message_id, body.feedback)
+    if message is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Message not found")
+    return message
+
+
+@router.post("/conversations/{conversation_id}/messages")
+async def post_message(
+    conversation_id: UUID,
+    body: PostMessageRequest,
+    db: AsyncSession = Depends(get_db),
+    providers: dict = Depends(get_providers),
+    qdrant_client: AsyncQdrantClient = Depends(get_qdrant),
+    db_engine: AsyncEngine = Depends(get_db_engine),
+    minio_client=Depends(get_minio),
+) -> StreamingResponse:
+    """Stream chat response for a new message."""
+
+    async def event_stream():
+        """Generator that streams SSE events."""
+        try:
+            async for chunk in run_chat(
+                conversation_id=conversation_id,
+                user_message=body.content,
+                model=body.model,
+                providers=providers,
+                db=db,
+                qdrant_client=qdrant_client,
+                attachments=[{"name": a.name, "content": a.content, "mime_type": a.mime_type} for a in body.attachments] if body.attachments else None,
+                db_engine=db_engine,
+                minio_client=minio_client,
+            ):
+                yield to_sse(chunk)
+        except Exception as e:
+            logger.exception(f"Streaming error for conversation {conversation_id}")
+            # Last-resort error chunk if everything fails
+            yield to_sse(
+                ChatChunk(
+                    type="error",
+                    data={
+                        "code": "internal",
+                        "message": f"Internal server error: {str(e)}",
+                    },
+                )
+            )
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # Prevent nginx from buffering SSE
+            "Connection": "keep-alive",
+        },
+    )
