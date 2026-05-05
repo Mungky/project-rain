@@ -114,7 +114,7 @@ class DocumentService:
             logger.info(f"Storing {filename} in MinIO...")
             await asyncio.to_thread(
                 minio_client.put_object,
-                bucket_name=brain_settings.minio_bucket_uploads,
+                bucket_name=settings.minio_bucket_uploads,
                 object_name=minio_key,
                 data=BytesIO(file_data),
                 length=len(file_data),
@@ -196,7 +196,7 @@ class DocumentService:
         try:
             await asyncio.to_thread(
                 minio_client.put_object,
-                bucket_name=brain_settings.minio_bucket_uploads,
+                bucket_name=settings.minio_bucket_uploads,
                 object_name=minio_key,
                 data=BytesIO(content_bytes),
                 length=len(content_bytes),
@@ -227,7 +227,7 @@ class DocumentService:
         try:
             response = await asyncio.to_thread(
                 minio_client.get_object,
-                brain_settings.minio_bucket_uploads,
+                settings.minio_bucket_uploads,
                 doc.minio_key,
             )
             content = await asyncio.to_thread(response.read)
@@ -250,7 +250,7 @@ class DocumentService:
                 await qdrant_client.delete(collection_name="documents", points_selector=Filter(must=[FieldCondition(key="document_id", match=MatchValue(value=str(document_id)))]))
             except: pass
         if minio_client:
-            try: await asyncio.to_thread(minio_client.remove_object, brain_settings.minio_bucket_uploads, doc.minio_key)
+            try: await asyncio.to_thread(minio_client.remove_object, settings.minio_bucket_uploads, doc.minio_key)
             except: pass
             
         await self.db.delete(doc)
