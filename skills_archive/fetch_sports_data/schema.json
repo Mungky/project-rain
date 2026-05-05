@@ -1,0 +1,14 @@
+{
+  "name": "fetch_sports_data",
+  "description": "Stub implementation for fetch_sports_data.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}

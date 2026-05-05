@@ -1,0 +1,14 @@
+{
+  "name": "image_search",
+  "description": "Stub implementation for image_search.",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": []
+  }
+}
