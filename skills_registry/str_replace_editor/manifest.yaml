@@ -1,0 +1,32 @@
+name: str_replace_editor
+version: "1.0.0"
+description: "Edit an existing file in the Rain workspace by replacing an exact string with new content. Use for precise, surgical edits — fixing a bug, updating a function, changing a config value. The old_str must match exactly (including indentation and whitespace). Use create_file to rewrite entire files instead."
+runtime: python3.11
+entry: handler.py:handle
+permissions:
+  network: false
+  filesystem: true
+  duration_seconds_max: 10
+inputs:
+  path:
+    type: string
+    description: "Relative path from workspace root, e.g. 'src/main.py'. Use forward slashes."
+    required: true
+  old_str:
+    type: string
+    description: "Exact string to find in the file. Must match character-for-character including whitespace and indentation."
+    required: true
+  new_str:
+    type: string
+    description: "Replacement string. Use empty string to delete old_str."
+    required: true
+outputs:
+  success:
+    type: boolean
+    description: "True if replacement was made."
+  replacements:
+    type: integer
+    description: "Number of occurrences replaced (always 1 — first match only)."
+  path:
+    type: string
+    description: "Absolute path of the edited file."

@@ -3,9 +3,12 @@
 import pathlib
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
+from pydantic import BaseModel
 from rain_backend.api.deps import get_db
 from rain_brain.services.skill_service import SkillService
 from db.schemas.dto_skill import SkillListResponse, Skill, InstallSkillRequest
+from db.schemas.skill import Skill as SkillModel
 
 
 router = APIRouter(tags=["skills"])
@@ -55,6 +58,30 @@ async def sync_skills(
     await service.sync_registry(registry_path=str(registry_path))
     skills = await service.get_enabled_skills()
     return {"synced": True, "total": len(skills), "skills": [s.name for s in skills]}
+
+
+class SkillToggleBody(BaseModel):
+    enabled: bool
+
+
+@router.patch("/{skill_name}", response_model=Skill)
+async def toggle_skill(
+    skill_name: str,
+    body: SkillToggleBody,
+    db: AsyncSession = Depends(get_db),
+) -> Skill:
+    """Enable or disable a skill by name."""
+    result = await db.execute(select(SkillModel).where(SkillModel.name == skill_name))
+    skill = result.scalar_one_or_none()
+    if skill is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "skill_not_found", "message": f"Skill '{skill_name}' not found"},
+        )
+    skill.enabled = body.enabled
+    await db.commit()
+    await db.refresh(skill)
+    return Skill.model_validate(skill)
 
 
 @router.delete("/{skill_name}", status_code=status.HTTP_204_NO_CONTENT)

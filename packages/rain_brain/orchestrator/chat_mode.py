@@ -961,9 +961,33 @@ async def run_chat(
         logger.debug("session registry lookup failed (non-blocking): %s", _sess_err)
 
     # --- 3. Build Tools: skills + built-in memory tool ---
+    # Persona-based allowlist: Storm gets research + file ops, Drizzle gets search only,
+    # Shower gets nothing. Conversation-level overrides (enabled_skills) narrow further.
+    _PERSONA_TOOL_ALLOWLIST: dict[str, set[str]] = {
+        "storm": {
+            "web-search-searxng",
+            "web-reader",
+            "python-executor",
+            "document-search",
+            "create_file",
+            "read_file",
+            "str_replace_editor",
+        },
+        "drizzle": {
+            "web-search-searxng",
+            "web-reader",
+            "python-executor",
+        },
+        "shower": set(),
+        "nimbus": set(),
+    }
+    _allowed_tools = _PERSONA_TOOL_ALLOWLIST.get(persona, set())
+
     skills = await skill_service.get_enabled_skills()
+    # Apply persona allowlist first
+    skills = [s for s in skills if s.name in _allowed_tools]
+    # Then apply conversation-level override if auto_skills is off
     if not conversation.auto_skills:
-        # enabled_skills stores either UUIDs or names — support both
         enabled_identifiers = set(conversation.enabled_skills or [])
         skills = [
             s for s in skills

@@ -1,0 +1,31 @@
+name: read_file
+version: "1.0.0"
+description: "Read the contents of a file from the Rain workspace. Use to inspect existing project files, verify what was written, or read reference files before editing. Returns the full file content."
+runtime: python3.11
+entry: handler.py:handle
+permissions:
+  network: false
+  filesystem: true
+  duration_seconds_max: 5
+inputs:
+  path:
+    type: string
+    description: "Relative path from workspace root, e.g. 'src/main.py'. Use forward slashes."
+    required: true
+  max_chars:
+    type: integer
+    description: "Maximum characters to return. Default 20000. Increase for large files."
+    default: 20000
+outputs:
+  content:
+    type: string
+    description: "File content."
+  path:
+    type: string
+    description: "Absolute path of the file."
+  size_bytes:
+    type: integer
+    description: "Total file size."
+  truncated:
+    type: boolean
+    description: "True if content was truncated due to max_chars limit."

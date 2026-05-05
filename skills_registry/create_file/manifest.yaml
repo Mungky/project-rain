@@ -1,0 +1,32 @@
+name: create_file
+version: "1.0.0"
+description: "Create or overwrite a file in the Rain workspace. Use this to produce project artifacts: architecture docs, source code files, config files, README, etc. Always use forward slashes in path. Parent directories are created automatically. Returns the absolute path of the created file."
+runtime: python3.11
+entry: handler.py:handle
+permissions:
+  network: false
+  filesystem: true
+  duration_seconds_max: 10
+inputs:
+  path:
+    type: string
+    description: "Relative path from workspace root, e.g. 'src/main.py' or 'docs/architecture.md'. Use forward slashes."
+    required: true
+  content:
+    type: string
+    description: "Full file content to write. For code files, include all imports and complete implementation."
+    required: true
+  encoding:
+    type: string
+    description: "File encoding. Default: utf-8."
+    default: "utf-8"
+outputs:
+  path:
+    type: string
+    description: "Absolute path of the created file."
+  size_bytes:
+    type: integer
+    description: "File size in bytes."
+  created:
+    type: boolean
+    description: "True if new file, False if overwritten."

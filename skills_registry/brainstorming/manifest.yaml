@@ -1,8 +1,0 @@
-description: Superpowers
-inputs:
-  query:
-    description: Input
-    required: true
-    type: string
-name: brainstorming
-version: 0.0.1-autogen

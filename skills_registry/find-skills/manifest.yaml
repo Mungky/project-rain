@@ -1,8 +1,0 @@
-description: skills
-inputs:
-  query:
-    description: Input
-    required: true
-    type: string
-name: find-skills
-version: 0.0.1-autogen
