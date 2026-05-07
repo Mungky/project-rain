@@ -58,9 +58,19 @@ class Settings(BaseSettings):
 
     # CORS
     frontend_origin: str = "http://localhost:3000"
+    backend_origin: str = "http://localhost:8000"
 
     # Security
-    session_secret_key: str = "change-me-in-production"
+    session_secret_key: str = "change-me-in-production-min-32-chars!!"
+
+    # Nimbus — Google Drive
+    google_service_account_json: str | None = None
+    nimbus_drive_root_folder_id: str | None = None  # ID folder RAIN-ARCHIVE di Drive
+
+    # Nimbus — Gmail notification (app password)
+    gmail_sender: str | None = None
+    gmail_app_password: str | None = None
+    admin_email: str | None = "fikri.mmstaqim@gmail.com"
 
     # Cache TTLs (seconds)
     embedding_cache_ttl: int = 7 * 24 * 60 * 60  # 7 days

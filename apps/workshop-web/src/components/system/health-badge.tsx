@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 export function HealthBadge() {
   const { data, isError, isLoading } = useHealth();
 
-  const ok = !isLoading && !isError && data?.status === "ok" && data.ollama && data.postgres && data.redis;
+  // Use backend's single source of truth: status === "ok" means everything is green
+  const ok = !isLoading && !isError && data?.status === "ok";
 
   return (
     <div

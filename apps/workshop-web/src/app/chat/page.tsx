@@ -6,6 +6,7 @@ import { useDocuments } from "@/hooks/use-documents";
 import { GlassPanel } from "@/components/identity/glass-panel";
 import { motion } from "framer-motion";
 import { useUIStore } from "@/stores/ui-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock, MessageSquare, Database, Activity, ArrowRight, Plus } from "lucide-react";
@@ -15,6 +16,7 @@ export default function ChatPage() {
   const { data: health } = useHealth();
   const { data: docs } = useDocuments();
   const setShowRain = useUIStore((s) => s.setShowRain);
+  const username = useAuthStore((s) => s.user?.username ?? "Operator");
 
   useEffect(() => {
     setShowRain(true);
@@ -52,7 +54,7 @@ export default function ChatPage() {
           transition={{ delay: 0.1 }}
           className="text-4xl md:text-5xl font-bold tracking-tighter text-white"
         >
-          Welcome back, <span className="text-white/60">Operator</span>
+          Welcome back, <span className="text-white/60">{username}</span>
         </motion.h1>
       </header>
 
@@ -68,10 +70,17 @@ export default function ChatPage() {
               <div className="p-2 rounded-xl bg-white/5 text-white/60">
                 <Activity size={20} />
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Operational
-              </div>
+              {health?.status === "ok" ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Operational
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] font-bold text-rose-400 uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                  Degraded
+                </div>
+              )}
             </div>
             <h3 className="text-sm font-bold text-white mb-2 tracking-wide">System Pulse</h3>
             <div className="space-y-3">
@@ -82,6 +91,18 @@ export default function ChatPage() {
               <div className="flex justify-between text-xs font-mono">
                 <span className="text-white/30 uppercase">Memory Core</span>
                 <span className={health?.postgres ? "text-emerald-500" : "text-rose-500"}>{health?.postgres ? "SYNCED" : "OFFLINE"}</span>
+              </div>
+              <div className="flex justify-between text-xs font-mono">
+                <span className="text-white/30 uppercase">Cache</span>
+                <span className={health?.redis ? "text-emerald-500" : "text-rose-500"}>{health?.redis ? "READY" : "OFFLINE"}</span>
+              </div>
+              <div className="flex justify-between text-xs font-mono">
+                <span className="text-white/30 uppercase">Storage</span>
+                <span className={health?.minio ? "text-emerald-500" : "text-rose-500"}>{health?.minio ? "READY" : "OFFLINE"}</span>
+              </div>
+              <div className="flex justify-between text-xs font-mono">
+                <span className="text-white/30 uppercase">Vector DB</span>
+                <span className={health?.qdrant ? "text-emerald-500" : "text-rose-500"}>{health?.qdrant ? "READY" : "OFFLINE"}</span>
               </div>
             </div>
           </GlassPanel>

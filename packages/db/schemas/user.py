@@ -1,11 +1,11 @@
 from uuid import UUID
-from sqlalchemy import ForeignKey, Index, String
+from sqlalchemy import ForeignKey, Index, String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, UUIDPKMixin, TimestampMixin
 
 class User(Base, UUIDPKMixin, TimestampMixin):
-    """The system user. In Phase 1, this typically handles a single default user."""
-    
+    """System user — supports admin and regular roles."""
+
     __tablename__ = "users"
 
     username: Mapped[str] = mapped_column(
@@ -18,6 +18,23 @@ class User(Base, UUIDPKMixin, TimestampMixin):
         String(255),
         nullable=True,
         comment="User email address.",
+    )
+    password_hash: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="bcrypt hash of user password.",
+    )
+    role: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="user",
+        comment="'admin' or 'user'.",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="Whether the account is enabled.",
     )
 
     conversations: Mapped[list["Conversation"]] = relationship(

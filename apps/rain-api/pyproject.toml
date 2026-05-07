@@ -28,6 +28,14 @@ dependencies = [
     "google-generativeai>=0.3.0",
     # Observability (optional — gracefully disabled if keys not set)
     "langfuse>=2.0.0",
+    # Auth
+    "PyJWT>=2.8.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=3.2.0,<4",
+    # Google Drive + Gmail (Nimbus)
+    "google-api-python-client>=2.100.0",
+    "google-auth>=2.23.0",
+    "google-auth-httplib2>=0.1.1",
     # Multipart form data
     "python-multipart>=0.0.6",
     # Environment

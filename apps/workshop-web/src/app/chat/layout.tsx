@@ -8,7 +8,9 @@ import { SettingsModal } from "@/components/system/settings-modal";
 import { HealthBadge } from "@/components/system/health-badge";
 import { ImageLightbox } from "@/components/chat/image-lightbox";
 import { ArtifactsPanel } from "@/components/chat/artifacts-panel";
+import { AuthGuard } from "@/components/system/auth-guard";
 import { useUIStore } from "@/stores/ui-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,70 +21,72 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { showRain } = useUIStore(
-    useShallow((s) => ({
-      showRain: s.showRain,
-    }))
-  );
+  const { showRain } = useUIStore(useShallow((s) => ({ showRain: s.showRain })));
+  const isAdmin = useAuthStore((s) => s.isAdmin());
 
   return (
-    <div className="relative min-h-screen bg-black overflow-hidden flex font-sans text-white">
-      <AnimatePresence>
-        {showRain && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2 }}
-            className="fixed inset-0 z-0"
-          >
-            <RainBackdrop />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* 3-Column System */}
-      <div className="relative flex-1 flex h-screen overflow-hidden p-4 gap-4">
-        
-        {/* Sidebar (Left) - NOW FIXED */}
-        <div className="w-[280px] h-full shrink-0 z-20">
-          <GlassPanel className="h-full rounded-2xl border border-white/10 flex flex-col overflow-hidden bg-white/5 backdrop-blur-2xl">
-            <div className="p-6 flex items-center gap-3 border-b border-white/10">
-              <Link href="/chat" className="flex items-center gap-3 group">
-                <div className="relative">
-                  <Image 
-                    src="/rain-logo.svg" 
-                    alt="Rain Logo" 
-                    width={28} 
-                    height={28} 
-                    className="relative z-10 transition-transform group-hover:scale-110" 
-                  />
-                  <div className="absolute inset-0 bg-white/20 blur-md group-hover:bg-white/40 transition-colors" />
-                </div>
-                <span className="font-bold text-lg tracking-[0.2em] text-white/90">RAIN</span>
-              </Link>
+    <AuthGuard>
+      <div className="relative min-h-screen bg-black overflow-hidden flex font-sans text-white">
+        <AnimatePresence>
+          {showRain && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 2 }}
+              className="fixed inset-0 z-0"
+            >
+              <RainBackdrop />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 3-Column System */}
+        <div className="relative flex-1 flex h-screen overflow-hidden p-4 gap-4">
+          {/* Sidebar (Left) */}
+          <div className="w-[280px] h-full shrink-0 z-20">
+            <GlassPanel className="h-full rounded-2xl border border-white/10 flex flex-col overflow-hidden bg-white/5 backdrop-blur-2xl">
+              <div className="p-6 flex items-center gap-3 border-b border-white/10">
+                <Link href="/chat" className="flex items-center gap-3 group">
+                  <div className="relative">
+                    <Image
+                      src="/rain-logo.svg"
+                      alt="Rain Logo"
+                      width={28}
+                      height={28}
+                      className="relative z-10 transition-transform group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-white/20 blur-md group-hover:bg-white/40 transition-colors" />
+                  </div>
+                  <span className="font-bold text-lg tracking-[0.2em] text-white/90">RAIN</span>
+                </Link>
+              </div>
+              <ConversationSidebar />
+            </GlassPanel>
+          </div>
+
+          {/* Main Chat (Center) */}
+          <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
+            <div className="flex-1 relative flex flex-col overflow-hidden">
+              {children}
             </div>
-            <ConversationSidebar />
-          </GlassPanel>
+          </main>
+
+          {/* Info Panel (Right) — admin only */}
+          {isAdmin && <InfoPanel />}
+          {isAdmin && <ArtifactsPanel />}
         </div>
 
-        {/* Main Chat (Center) */}
-        <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
-          <div className="flex-1 relative flex flex-col overflow-hidden">
-            {children}
-          </div>
-        </main>
+        {/* Settings modal — admin only */}
+        {isAdmin && (
+          <AnimatePresence>
+            <SettingsModal key="settings" />
+          </AnimatePresence>
+        )}
 
-        {/* Info Panel (Right) */}
-        <InfoPanel />
-        <ArtifactsPanel />
+        <HealthBadge />
+        <ImageLightbox />
       </div>
-
-      <AnimatePresence>
-        <SettingsModal key="settings" />
-      </AnimatePresence>
-      <HealthBadge />
-      <ImageLightbox />
-    </div>
+    </AuthGuard>
   );
 }

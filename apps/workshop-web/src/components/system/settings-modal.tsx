@@ -50,9 +50,13 @@ import {
   Droplets,
   Zap,
   Tag,
+  UserPlus,
+  Users,
+  ShieldCheck,
 } from "lucide-react";
+import { apiGet, apiPost, apiPatch } from "@/lib/api-client";
 
-type TabId = "api" | "models" | "skills" | "kb" | "baseline";
+type TabId = "api" | "models" | "skills" | "kb" | "baseline" | "users";
 
 type RegisterPersona = Persona;
 
@@ -282,8 +286,9 @@ export function SettingsModal() {
                 { id: "api",      label: "API Credentials", icon: Globe },
                 { id: "models",   label: "Models",          icon: Layers },
                 { id: "skills",   label: "Skill Store",     icon: Cpu },
-                { id: "kb",       label: "Neural Archive",  icon: Database },
-                { id: "baseline", label: "Neural Baseline", icon: Brain },
+                { id: "kb",       label: "Archive",         icon: Database },
+                { id: "baseline", label: "Baseline",        icon: Brain },
+                { id: "users",    label: "Users",           icon: Sparkles },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -727,7 +732,7 @@ export function SettingsModal() {
                   </motion.div>
                 )}
 
-                {/* ── Neural Baseline ─────────────────────────────────────── */}
+                {/* ── Baseline ─────────────────────────────────────── */}
                 {activeTab === "baseline" && (
                   <motion.div
                     key="baseline"
@@ -737,7 +742,7 @@ export function SettingsModal() {
                     className="space-y-6"
                   >
                     <div className="space-y-1 mb-6">
-                      <h3 className="text-lg font-semibold text-white">Neural Baseline</h3>
+                      <h3 className="text-lg font-semibold text-white">Baseline</h3>
                       <p className="text-xs text-white/30 uppercase tracking-widest">Global system prompt injected in every conversation</p>
                     </div>
                     <textarea
@@ -751,11 +756,172 @@ export function SettingsModal() {
                   </motion.div>
                 )}
 
+                {/* ── Users ─────────────────────────────────────── */}
+                {activeTab === "users" && (
+                  <motion.div
+                    key="users"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                  >
+                    <UserManager />
+                  </motion.div>
+                )}
+
               </AnimatePresence>
             </div>
           </div>
         </GlassPanel>
       </motion.div>
+    </div>
+  );
+}
+
+// ── User Manager ─────────────────────────────────────────────────────────────
+
+interface UserRow {
+  id: string;
+  username: string;
+  email: string | null;
+  role: string;
+  is_active: boolean;
+}
+
+function UserManager() {
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState("user");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const list = await apiGet<UserRow[]>("/v1/auth/users");
+      setUsers(list);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleCreate = async () => {
+    if (!newUsername.trim() || !newPassword.trim()) return;
+    setCreating(true);
+    setError(null);
+    try {
+      await apiPost("/v1/auth/users", {
+        username: newUsername.trim(),
+        password: newPassword,
+        email: newEmail.trim() || null,
+        role: newRole,
+      });
+      setNewUsername(""); setNewPassword(""); setNewEmail(""); setNewRole("user");
+      setShowForm(false);
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Gagal membuat user");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeactivate = async (id: string) => {
+    if (!confirm("Nonaktifkan user ini?")) return;
+    await apiPatch(`/v1/auth/users/${id}/deactivate`, {});
+    await load();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-white">Users</h3>
+          <p className="text-xs text-white/30 uppercase tracking-widest">Kelola akun Rain</p>
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 transition-all"
+        >
+          <UserPlus size={14} /> Buat User
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">User Baru</p>
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+          <input
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            placeholder="Username"
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none"
+          />
+          <input
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="Email (opsional)"
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none"
+          />
+          <select
+            value={newRole}
+            onChange={(e) => setNewRole(e.target.value)}
+            className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none"
+          >
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+          <button
+            onClick={handleCreate}
+            disabled={creating || !newUsername.trim() || !newPassword.trim()}
+            className="w-full py-2 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 disabled:opacity-40 transition-all"
+          >
+            {creating ? "Menyimpan…" : "Simpan"}
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 rounded-xl bg-white/5 animate-pulse"/>)}</div>
+      ) : (
+        <div className="space-y-2">
+          {users.map((u) => (
+            <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+              <div className="p-2 rounded-lg bg-white/5">
+                {u.role === "admin" ? <ShieldCheck size={14} className="text-amber-400" /> : <Users size={14} className="text-white/40" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white">{u.username}</p>
+                <p className="text-[10px] text-white/30">{u.email ?? "—"} · {u.role}</p>
+              </div>
+              <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${u.is_active ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" : "text-rose-400 border-rose-500/20 bg-rose-500/10"}`}>
+                {u.is_active ? "Active" : "Inactive"}
+              </span>
+              {u.is_active && u.role !== "admin" && (
+                <button
+                  onClick={() => handleDeactivate(u.id)}
+                  className="p-1.5 rounded-lg text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                  title="Nonaktifkan"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

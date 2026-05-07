@@ -136,7 +136,9 @@
       "Bash(pkill -f \"uvicorn rain_backend.main:app\")",
       "Bash(git init *)",
       "Bash(ls .gitignore)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(cd \"D:\\\\006 Restard\\\\Rain\\\\project-rain-build\" && uv sync 2>&1 | head -20)",
+      "Bash(RAIN_ADMIN_PASSWORD=\"rain-admin-change-me\" uv run python packages/db/seeds/seed_default_user.py)"
     ]
   }
 }
