@@ -97,11 +97,15 @@ def _get_drive_service():
 
 
 def _ensure_folder(service, parent_id: str, folder_name: str) -> str:
+    # supportsAllDrives=True required for Shared Drives
     q = (
         f"name='{folder_name}' and '{parent_id}' in parents "
         f"and mimeType='application/vnd.google-apps.folder' and trashed=false"
     )
-    res = service.files().list(q=q, fields="files(id)").execute()
+    res = service.files().list(
+        q=q, fields="files(id)",
+        supportsAllDrives=True, includeItemsFromAllDrives=True,
+    ).execute()
     files = res.get("files", [])
     if files:
         return files[0]["id"]
@@ -110,7 +114,9 @@ def _ensure_folder(service, parent_id: str, folder_name: str) -> str:
         "mimeType": "application/vnd.google-apps.folder",
         "parents": [parent_id],
     }
-    return service.files().create(body=meta, fields="id").execute()["id"]
+    return service.files().create(
+        body=meta, fields="id", supportsAllDrives=True,
+    ).execute()["id"]
 
 
 def _upload_to_drive(
@@ -125,7 +131,9 @@ def _upload_to_drive(
     cat_id = _ensure_folder(service, project_id, folder_category.upper())
     media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=False)
     file_meta = {"name": filename, "parents": [cat_id]}
-    uploaded = service.files().create(body=file_meta, media_body=media, fields="id").execute()
+    uploaded = service.files().create(
+        body=file_meta, media_body=media, fields="id", supportsAllDrives=True,
+    ).execute()
     drive_path = (
         f"RAIN-ARCHIVE/CLIENTS/{client_code.upper()}/"
         f"{project_code.upper()}/{folder_category.upper()}/{filename}"
@@ -671,7 +679,7 @@ async def approve_access(token: str, db: AsyncSession = Depends(get_db)):
 
     from googleapiclient.http import MediaIoBaseDownload  # type: ignore
 
-    request = drive_svc.files().get_media(fileId=doc.drive_file_id)
+    request = drive_svc.files().get_media(fileId=doc.drive_file_id, supportsAllDrives=True)
     buf = io.BytesIO()
     downloader = MediaIoBaseDownload(buf, request)
     done = False
