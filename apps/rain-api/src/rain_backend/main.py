@@ -97,6 +97,8 @@ async def lifespan(app: FastAPI):
             pool_pre_ping=True,
         )
         logger.info("PostgreSQL engine created")
+        from rain_backend.api.v1.nimbus import init_nimbus_engine
+        init_nimbus_engine(app.state.db_engine)
     except Exception as e:
         logger.error(f"PostgreSQL engine creation failed: {e}")
         app.state.db_engine = None
