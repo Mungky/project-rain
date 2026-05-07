@@ -138,7 +138,10 @@
       "Bash(ls .gitignore)",
       "Bash(git add *)",
       "Bash(cd \"D:\\\\006 Restard\\\\Rain\\\\project-rain-build\" && uv sync 2>&1 | head -20)",
-      "Bash(RAIN_ADMIN_PASSWORD=\"rain-admin-change-me\" uv run python packages/db/seeds/seed_default_user.py)"
+      "Bash(RAIN_ADMIN_PASSWORD=\"rain-admin-change-me\" uv run python packages/db/seeds/seed_default_user.py)",
+      "Bash(git commit -m ' *)",
+      "Bash(bunx tsc *)",
+      "Bash(\"D:\\\\006 Restard\\\\Rain\\\\project-rain-build\\\\apps\\\\workshop-web\\\\node_modules\\\\.bin\\\\tsc.exe\" --project \"D:\\\\006 Restard\\\\Rain\\\\project-rain-build\\\\apps\\\\workshop-web\\\\tsconfig.json\" --noEmit)"
     ]
   }
 }
