@@ -1,8 +1,0 @@
-description: Claude Office Skills
-inputs:
-  query:
-    description: Input
-    required: true
-    type: string
-name: excel-automation
-version: 0.0.1-autogen

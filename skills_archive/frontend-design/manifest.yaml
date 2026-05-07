@@ -1,9 +1,0 @@
-description: '> **Note:** This repository contains Anthropic''s implementation of
-  skills for Claude. For information about the Agent Skills standard, see [agentskills.io](http://agentskills.io).'
-inputs:
-  query:
-    description: Input
-    required: true
-    type: string
-name: frontend-design
-version: 0.0.1-autogen
