@@ -1,28 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, X, Pencil, FileText, FolderOpen } from "lucide-react";
+import { Check, X, FileText, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface ProposalData {
-  proposal_id: string;
-  proposed_name: string;
-  original_name: string;
-  file_size: number;
-  doc_type: string;
-  client_code: string;
-  project_code: string;
-  folder_category: string;
-  version: string;
-  seq_preview: number;
-}
+import { apiGet } from "@/lib/api-client";
+import type { ClientData, ProjectData, ProposalData } from "./nimbus-types";
 
 const DOC_TYPES = ["PO", "Q", "PL", "QC", "BA", "DRW", "INV", "PROP", "BAST", "MISC"];
 const FOLDER_CATS = ["DRW", "QC", "PO", "BA", "PROPOSAL", "INVOICE", "MISC"];
 
 interface Props {
   data: ProposalData;
+  clients: ClientData[];
   onApprove: (proposalId: string, data: ProposalData) => void;
   onCancel: () => void;
 }
@@ -32,17 +22,39 @@ function formatBytes(b: number): string {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FileProposalCard({ data, onApprove, onCancel }: Props) {
+export function FileProposalCard({ data, clients, onApprove, onCancel }: Props) {
   const [form, setForm] = useState<ProposalData>({ ...data });
+  const [projects, setProjects] = useState<ProjectData[]>([]);
   const [approved, setApproved] = useState(false);
   const [cancelled, setCancelled] = useState(false);
 
-  // Rebuild proposed name from form state
+  useEffect(() => {
+    if (!form.client_code || form.client_code === "CLIENT") {
+      setProjects([]);
+      return;
+    }
+    apiGet<ProjectData[]>(`/v1/nimbus/clients/${form.client_code}/projects`)
+      .then(setProjects)
+      .catch(() => setProjects([]));
+  }, [form.client_code]);
+
+  const handleClientChange = (code: string) => {
+    setForm((f) => ({ ...f, client_code: code, project_code: "" }));
+  };
+
+  const handleProjectChange = (code: string) => {
+    const proj = projects.find((p) => p.code === code);
+    setForm((f) => ({
+      ...f,
+      project_code: code,
+      folder_category: proj?.default_folder_category ?? f.folder_category,
+    }));
+  };
+
   const previewName = (() => {
     const date = new Date().toLocaleDateString("id-ID", {
       day: "2-digit", month: "2-digit", year: "2-digit",
     }).replace(/\//g, "");
-    // Simple preview (actual name is computed server-side on confirm)
     const stem = data.original_name.replace(/\.[^.]+$/, "").replace(/[^\w\-]/g, "_").slice(0, 40);
     const ext = data.original_name.match(/\.[^.]+$/)?.[0] ?? "";
     return `${form.doc_type}-${String(form.seq_preview).padStart(3, "0")}-${stem}-${date}-${form.version}${ext}`;
@@ -96,37 +108,80 @@ export function FileProposalCard({ data, onApprove, onCancel }: Props) {
 
       {/* Editable fields */}
       <div className="px-4 py-3 grid grid-cols-2 gap-3 border-b border-pink-500/10">
-        <Field
+        <SelectField
           label="Jenis Dokumen"
           value={form.doc_type}
           onChange={(v) => setForm({ ...form, doc_type: v })}
           options={DOC_TYPES}
         />
-        <Field
+        <SelectField
           label="Folder"
           value={form.folder_category}
           onChange={(v) => setForm({ ...form, folder_category: v })}
           options={FOLDER_CATS}
         />
-        <TextInput
-          label="Client"
-          value={form.client_code}
-          onChange={(v) => setForm({ ...form, client_code: v })}
-          placeholder="e.g. PERTAMINA"
-        />
-        <TextInput
-          label="Project"
-          value={form.project_code}
-          onChange={(v) => setForm({ ...form, project_code: v })}
-          placeholder="e.g. PROJ-001"
-        />
-        <TextInput
-          label="Version"
-          value={form.version}
-          onChange={(v) => setForm({ ...form, version: v })}
-          placeholder="V1"
-          className="col-span-2 max-w-[120px]"
-        />
+
+        {/* Client */}
+        <div>
+          <label className="text-[10px] text-white/30 font-mono uppercase tracking-widest block mb-1">Client</label>
+          {clients.length > 0 ? (
+            <select
+              value={form.client_code}
+              onChange={(e) => handleClientChange(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-pink-500/40 transition-colors cursor-pointer"
+            >
+              <option value="" className="bg-slate-900">— Pilih Client —</option>
+              {clients.map((c) => (
+                <option key={c.code} value={c.code} className="bg-slate-900">
+                  {c.name} ({c.code})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={form.client_code}
+              onChange={(e) => handleClientChange(e.target.value.toUpperCase())}
+              placeholder="e.g. PERTAMINA"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs font-mono text-white outline-none focus:border-pink-500/40 transition-colors placeholder:text-white/15"
+            />
+          )}
+        </div>
+
+        {/* Project */}
+        <div>
+          <label className="text-[10px] text-white/30 font-mono uppercase tracking-widest block mb-1">Project</label>
+          {projects.length > 0 ? (
+            <select
+              value={form.project_code}
+              onChange={(e) => handleProjectChange(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-pink-500/40 transition-colors cursor-pointer"
+            >
+              <option value="" className="bg-slate-900">— Pilih Project —</option>
+              {projects.map((p) => (
+                <option key={p.code} value={p.code} className="bg-slate-900">
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={form.project_code}
+              onChange={(e) => setForm({ ...form, project_code: e.target.value.toUpperCase() })}
+              placeholder="e.g. PROJ-001"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs font-mono text-white outline-none focus:border-pink-500/40 transition-colors placeholder:text-white/15"
+            />
+          )}
+        </div>
+
+        <div className="col-span-2 max-w-[120px]">
+          <label className="text-[10px] text-white/30 font-mono uppercase tracking-widest block mb-1">Version</label>
+          <input
+            value={form.version}
+            onChange={(e) => setForm({ ...form, version: e.target.value.toUpperCase() })}
+            placeholder="V1"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs font-mono text-white outline-none focus:border-pink-500/40 transition-colors placeholder:text-white/15"
+          />
+        </div>
       </div>
 
       {/* Drive path preview */}
@@ -158,7 +213,7 @@ export function FileProposalCard({ data, onApprove, onCancel }: Props) {
   );
 }
 
-function Field({
+function SelectField({
   label, value, onChange, options,
 }: {
   label: string; value: string; onChange: (v: string) => void; options: string[];
@@ -175,24 +230,6 @@ function Field({
           <option key={o} value={o} className="bg-slate-900">{o}</option>
         ))}
       </select>
-    </div>
-  );
-}
-
-function TextInput({
-  label, value, onChange, placeholder, className,
-}: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
-}) {
-  return (
-    <div className={className}>
-      <label className="text-[10px] text-white/30 font-mono uppercase tracking-widest block mb-1">{label}</label>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value.toUpperCase())}
-        placeholder={placeholder}
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs font-mono text-white outline-none focus:border-pink-500/40 transition-colors placeholder:text-white/15"
-      />
     </div>
   );
 }

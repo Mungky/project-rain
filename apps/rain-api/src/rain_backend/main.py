@@ -41,6 +41,7 @@ from rain_backend.settings import settings
 from rain_backend.api.v1 import (
     auth_router,
     nimbus_router,
+    nimbus_db_router,
     health_router,
     conversations_router,
     messages_router,
@@ -270,6 +271,7 @@ def create_app() -> FastAPI:
     # Register API routers
     app.include_router(auth_router, prefix="/v1/auth", tags=["auth"])
     app.include_router(nimbus_router, prefix="/v1/nimbus", tags=["nimbus"])
+    app.include_router(nimbus_db_router, prefix="/v1/nimbus", tags=["nimbus-db"])
     app.include_router(health_router, prefix="/v1", tags=["health"])
     app.include_router(conversations_router, prefix="/v1/conversations", tags=["conversations"])
     app.include_router(messages_router, prefix="/v1", tags=["messages"])
