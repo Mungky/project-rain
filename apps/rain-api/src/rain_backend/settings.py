@@ -63,9 +63,14 @@ class Settings(BaseSettings):
     # Security
     session_secret_key: str = "change-me-in-production-min-32-chars!!"
 
-    # Nimbus — Google Drive
+    # Nimbus — Google Drive (OAuth2 personal account — preferred)
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: str | None = None
+    google_oauth_refresh_token: str | None = None
+    nimbus_drive_root_folder_id: str | None = None
+
+    # Nimbus — Google Drive (service account — fallback, not usable on personal Drive)
     google_service_account_json: str | None = None
-    nimbus_drive_root_folder_id: str | None = None  # ID folder RAIN-ARCHIVE di Drive
 
     # Nimbus — Gmail notification (app password)
     gmail_sender: str | None = None

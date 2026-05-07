@@ -81,9 +81,32 @@ def _cleanup_proposals() -> None:
 # ── Google Drive helpers ──────────────────────────────────────────────────────
 
 def _get_drive_service():
+    """Return authenticated Drive service.
+    Prefers OAuth2 personal credentials; falls back to service account.
+    """
+    from googleapiclient.discovery import build  # type: ignore
+
+    # --- OAuth2 personal account (preferred for personal Google/Google One) ---
+    if settings.google_oauth_client_id and settings.google_oauth_refresh_token:
+        try:
+            from google.oauth2.credentials import Credentials
+            from google.auth.transport.requests import Request as GoogleRequest
+            creds = Credentials(
+                token=None,
+                refresh_token=settings.google_oauth_refresh_token,
+                client_id=settings.google_oauth_client_id,
+                client_secret=settings.google_oauth_client_secret,
+                token_uri="https://oauth2.googleapis.com/token",
+                scopes=["https://www.googleapis.com/auth/drive"],
+            )
+            creds.refresh(GoogleRequest())
+            return build("drive", "v3", credentials=creds, cache_discovery=False)
+        except Exception as e:
+            logger.warning("OAuth2 Drive auth failed: %s", e)
+
+    # --- Service account fallback ---
     try:
         from google.oauth2 import service_account
-        from googleapiclient.discovery import build  # type: ignore
         creds_path = settings.google_service_account_json
         if not creds_path or not Path(creds_path).exists():
             return None
