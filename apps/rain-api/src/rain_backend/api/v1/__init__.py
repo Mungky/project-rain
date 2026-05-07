@@ -1,5 +1,7 @@
 """API v1 endpoints."""
 
+from rain_backend.api.v1.auth import router as auth_router
+from rain_backend.api.v1.nimbus import router as nimbus_router
 from rain_backend.api.v1.health import router as health_router
 from rain_backend.api.v1.conversations import router as conversations_router
 from rain_backend.api.v1.messages import router as messages_router
@@ -15,6 +17,8 @@ from rain_backend.api.v1.few_shot import router as few_shot_router
 from rain_backend.api.v1.session_registry import router as session_registry_router
 
 __all__ = [
+    "auth_router",
+    "nimbus_router",
     "health_router",
     "conversations_router",
     "messages_router",

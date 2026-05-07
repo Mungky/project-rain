@@ -6,6 +6,8 @@ export interface HealthResponse {
   ollama: boolean;
   postgres: boolean;
   redis: boolean;
+  minio: boolean;
+  qdrant: boolean;
 }
 
 export const healthKeys = {

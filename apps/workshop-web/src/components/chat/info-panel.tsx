@@ -4,24 +4,22 @@ import { useUIStore } from "@/stores/ui-store";
 import { GlassPanel } from "@/components/identity/glass-panel";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDocuments, useDeleteDocument, useDownloadDocument } from "@/hooks/use-documents";
-import { useSkills } from "@/hooks/use-skills";
-import { useUsage } from "@/hooks/use-user-preferences";
 import {
   useContextLibrary,
   useCreateContextEntry,
   useUpdateContextEntry,
   useDeleteContextEntry,
 } from "@/hooks/use-context-library";
-import type { MessageResponse, ContextEntryResponse, UsagePeriod } from "@/lib/api-types";
+import { useUserPreferences, useUpdateUserPreferences } from "@/hooks/use-user-preferences";
+import type { ContextEntryResponse } from "@/lib/api-types";
 import { useShallow } from "zustand/react/shallow";
 import { useState } from "react";
 import {
-  BarChart3,
   Brain,
   Database,
+  BookOpen,
   X,
   ChevronLeft,
-  Wrench,
   Search,
   Plus,
   Pencil,
@@ -29,34 +27,12 @@ import {
   Check,
   ChevronDown,
   Download,
-  Calendar,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type InfoTab = "usage" | "skills" | "context" | "kb";
-
-// ── Pricing helpers ──────────────────────────────────────────────────────────
-
-const IDR_PER_USD = 16_200;
-
-function getModelPricing(model: string | null): { in: number; out: number } {
-  if (!model) return { in: 0, out: 0 };
-  const m = model.toLowerCase();
-  if (m.includes("opus"))          return { in: 15, out: 75 };
-  if (m.includes("sonnet"))        return { in: 3, out: 15 };
-  if (m.includes("haiku"))         return { in: 0.25, out: 1.25 };
-  if (m.includes("gpt-4o-mini"))   return { in: 0.15, out: 0.6 };
-  if (m.includes("gpt-4o"))        return { in: 5, out: 15 };
-  if (m.includes("gpt-4"))         return { in: 10, out: 30 };
-  if (m.includes("gpt-3.5"))       return { in: 0.5, out: 1.5 };
-  if (m.includes("gemini"))        return { in: 0.075, out: 0.3 };
-  return { in: 0, out: 0 }; // ollama / local = free
-}
-
-function formatIDR(idr: number): string {
-  if (idr < 1) return "< Rp 1";
-  return `Rp ${Math.round(idr).toLocaleString("id-ID")}`;
-}
+// Brain panel has 3 tabs: Context (manual knowledge), Archive (documents), Baseline (user prefs)
+type InfoTab = "context" | "archive" | "baseline";
 
 // ── Panel ────────────────────────────────────────────────────────────────────
 
@@ -68,37 +44,16 @@ export function InfoPanel() {
     }))
   );
 
-  const [activeTab, setActiveTab] = useState<InfoTab>("usage");
-  const [skillSearch, setSkillSearch] = useState("");
-  const [usagePeriod, setUsagePeriod] = useState<UsagePeriod>("all");
+  const [activeTab, setActiveTab] = useState<InfoTab>("context");
 
   const { data: docs } = useDocuments({ refetchInterval: 5000 });
-  const { data: availableSkills } = useSkills({ refetchInterval: 10000 });
-  const { data: globalUsage } = useUsage(usagePeriod, { refetchInterval: 5000 });
-  
   const deleteDoc = useDeleteDocument();
   const downloadDoc = useDownloadDocument();
 
-  // Global totals
-  const totalIn = globalUsage?.total_tokens_in ?? 0;
-  const totalOut = globalUsage?.total_tokens_out ?? 0;
-  const totalTokens = totalIn + totalOut;
-
-  const totalCostIDR = (globalUsage?.by_model ?? []).reduce((acc, entry) => {
-    const p = getModelPricing(entry.model);
-    return acc + ((entry.tokens_in / 1_000_000) * p.in + (entry.tokens_out / 1_000_000) * p.out) * IDR_PER_USD;
-  }, 0);
-
-  const filteredSkills = availableSkills?.filter((s) =>
-    s.name.toLowerCase().includes(skillSearch.toLowerCase()) ||
-    s.description.toLowerCase().includes(skillSearch.toLowerCase())
-  );
-
   const tabs = [
-    { id: "usage",   label: "Usage",   icon: BarChart3 },
-    { id: "skills",  label: "Skills",  icon: Wrench },
-    { id: "context", label: "Context", icon: Brain },
-    { id: "kb",      label: "Library", icon: Database },
+    { id: "context",  label: "Context",  icon: Brain },
+    { id: "archive",  label: "Archive",  icon: Database },
+    { id: "baseline", label: "Baseline", icon: SlidersHorizontal },
   ];
 
   return (
@@ -176,135 +131,6 @@ export function InfoPanel() {
         )}>
           <AnimatePresence mode="wait">
 
-            {/* ── Usage ── */}
-            {activeTab === "usage" && infoPanelOpen && (
-              <motion.div
-                key="usage"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="space-y-6"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Global Metrics</h3>
-                    <p className="text-xs text-white/40 mt-0.5">Total resource consumption.</p>
-                  </div>
-                  <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/5">
-                    {(["all", "today"] as UsagePeriod[]).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setUsagePeriod(p)}
-                        className={cn(
-                          "px-2 py-1 rounded-md text-[10px] font-bold transition-all",
-                          usagePeriod === p ? "bg-white text-black shadow-lg" : "text-white/30 hover:text-white/60"
-                        )}
-                      >
-                        {p.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-white/40">Inbound</span>
-                    <span className="font-mono text-white/80">{totalIn.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-white/40">Outbound</span>
-                    <span className="font-mono text-white/80">{totalOut.toLocaleString()}</span>
-                  </div>
-                  <div className="pt-3 border-t border-white/5 flex justify-between text-sm font-bold">
-                    <span className="text-white/60">Total Tokens</span>
-                    <span className="font-mono text-white">{totalTokens.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-white/40">Neural Threads</span>
-                    <span className="font-mono text-white/80">{globalUsage?.total_conversations ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold text-emerald-400/80">
-                    <span className="opacity-60">Est. Cost</span>
-                    <span className="font-mono">{formatIDR(totalCostIDR)}</span>
-                  </div>
-                </div>
-
-                {(globalUsage?.by_model ?? []).length > 0 && (
-                  <div className="space-y-4 pt-2 border-t border-white/5">
-                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">By Model</p>
-                    {globalUsage?.by_model.map((entry) => {
-                      const tokens = entry.tokens_in + entry.tokens_out;
-                      const pct = totalTokens > 0 ? (tokens / totalTokens) * 100 : 0;
-                      const p = getModelPricing(entry.model);
-                      const costIDR = ((entry.tokens_in / 1_000_000) * p.in + (entry.tokens_out / 1_000_000) * p.out) * IDR_PER_USD;
-                      const label = entry.model.length > 26 ? entry.model.slice(0, 24) + "…" : entry.model;
-                      return (
-                        <div key={entry.model} className="space-y-1.5">
-                          <div className="flex justify-between items-baseline gap-2">
-                            <span className="text-[10px] font-mono text-white/50 truncate">{label}</span>
-                            <span className="text-[10px] font-mono text-white/25 shrink-0">{pct.toFixed(0)}%</span>
-                          </div>
-                          <div className="h-1 rounded-full bg-white/10 overflow-hidden">
-                            <motion.div
-                              className="h-full rounded-full bg-white/40"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.6, ease: "easeOut" }}
-                            />
-                          </div>
-                          {costIDR >= 1 && (
-                            <p className="text-[9px] text-white/20 font-mono text-right">{formatIDR(costIDR)}</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* ── Skills ── */}
-            {activeTab === "skills" && infoPanelOpen && (
-              <motion.div
-                key="skills"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="space-y-6"
-              >
-                <div>
-                  <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Skill Control</h3>
-                  <p className="text-xs text-white/40 mt-0.5">Active capabilities.</p>
-                </div>
-
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
-                  <input
-                    type="text"
-                    placeholder="Search skills..."
-                    value={skillSearch}
-                    onChange={(e) => setSkillSearch(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-white/20 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  {!filteredSkills?.length && (
-                    <p className="text-xs text-white/20 italic text-center py-4">No skills installed.</p>
-                  )}
-                  {filteredSkills?.map((skill) => (
-                    <div
-                      key={skill.id}
-                      className="p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:border-white/10 transition-all"
-                    >
-                      <p className="text-xs font-semibold text-white">{skill.name}</p>
-                      <p className="text-[10px] text-white/30 truncate mt-0.5">{skill.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
             {/* ── Context ── */}
             {activeTab === "context" && infoPanelOpen && (
               <motion.div
@@ -317,22 +143,22 @@ export function InfoPanel() {
               </motion.div>
             )}
 
-            {/* ── KB ── */}
-            {activeTab === "kb" && infoPanelOpen && (
+            {/* ── Archive ── */}
+            {activeTab === "archive" && infoPanelOpen && (
               <motion.div
-                key="kb"
+                key="archive"
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 className="space-y-6"
               >
                 <div>
-                  <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Neural Archive</h3>
-                  <p className="text-xs text-white/40 mt-0.5">Connected knowledge sources.</p>
+                  <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Archive</h3>
+                  <p className="text-xs text-white/40 mt-0.5">Uploaded knowledge sources.</p>
                 </div>
                 <div className="space-y-2">
                   {docs?.documents.length === 0 && (
-                    <p className="text-xs text-white/20 italic">No external fragments indexed.</p>
+                    <p className="text-xs text-white/20 italic">No documents indexed.</p>
                   )}
                   {docs?.documents.map((doc) => (
                     <div
@@ -365,6 +191,18 @@ export function InfoPanel() {
                     </div>
                   ))}
                 </div>
+              </motion.div>
+            )}
+
+            {/* ── Baseline ── */}
+            {activeTab === "baseline" && infoPanelOpen && (
+              <motion.div
+                key="baseline"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+              >
+                <BaselinePanel />
               </motion.div>
             )}
 
@@ -538,6 +376,71 @@ function CompactEntryCard({ entry }: EntryCardProps) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Baseline Panel (User Preference) ─────────────────────────────────────────
+
+function BaselinePanel() {
+  const { data: prefs, isLoading } = useUserPreferences();
+  const updateMut = useUpdateUserPreferences();
+
+  const [prompt, setPrompt] = useState("");
+  const [ctx, setCtx] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  // Initialise once data loads
+  useState(() => {
+    if (prefs) {
+      setPrompt(prefs.custom_system_prompt ?? "");
+      setCtx("");
+    }
+  });
+
+  if (isLoading) {
+    return <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="h-20 rounded-xl bg-white/[0.03] animate-pulse" />)}</div>;
+  }
+
+  const handleSave = () => {
+    updateMut.mutate(
+      { custom_system_prompt: prompt || null },
+      { onSuccess: () => setDirty(false) },
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Baseline</h3>
+        <p className="text-xs text-white/40 mt-0.5">Instruksi yang selalu diikutkan ke setiap sesi.</p>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
+          System Prompt Pribadi
+        </label>
+        <textarea
+          rows={5}
+          value={prompt}
+          placeholder="Contoh: Selalu jawab dalam Bahasa Indonesia. Jadilah singkat dan to the point."
+          onChange={(e) => { setPrompt(e.target.value); setDirty(true); }}
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white/80 placeholder:text-white/20 resize-none focus:outline-none focus:border-white/20 transition-all"
+        />
+        <p className="text-[9px] text-white/20 leading-relaxed">
+          Ditulis di atas setiap percakapan baru. AI akan menyesuaikan gayanya.
+        </p>
+      </div>
+
+      {dirty && (
+        <button
+          onClick={handleSave}
+          disabled={updateMut.isPending}
+          className="w-full py-2 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 disabled:opacity-50 transition-all"
+        >
+          {updateMut.isPending ? "Menyimpan…" : "Simpan Baseline"}
+        </button>
+      )}
     </div>
   );
 }
