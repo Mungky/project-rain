@@ -6,9 +6,11 @@ import { useAuthStore } from "@/stores/auth-store";
 import { apiGet, apiPost, apiPostForm } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { FileProposalCard } from "./file-proposal-card";
+import { BatchProposalCard } from "./batch-proposal-card";
 import { SearchResultsCard } from "./search-results-card";
+import type { ClientData, ProposalData, MatchResult } from "./nimbus-types";
 import {
-  CloudUpload, Send, Paperclip, Loader2, FolderSearch,
+  CloudUpload, Send, Paperclip, Loader2,
   CheckCircle2, XCircle, Clock, FolderOpen, X
 } from "lucide-react";
 
@@ -19,6 +21,7 @@ type MessageType =
   | "text"
   | "file-attach"
   | "proposal"
+  | "batch-proposal"
   | "search-results"
   | "queue-status"
   | "upload-success"
@@ -33,19 +36,6 @@ interface ChatMessage {
   content: string;
   data?: Record<string, unknown>;
   timestamp: Date;
-}
-
-interface ProposalData {
-  proposal_id: string;
-  proposed_name: string;
-  original_name: string;
-  file_size: number;
-  doc_type: string;
-  client_code: string;
-  project_code: string;
-  folder_category: string;
-  version: string;
-  seq_preview: number;
 }
 
 interface SearchResult {
@@ -71,7 +61,6 @@ interface QueueItem {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const DOC_TYPES = ["PO", "Q", "PL", "QC", "BA", "DRW", "INV", "PROP", "BAST", "MISC"];
-const FOLDER_CATEGORIES = ["DRW", "QC", "PO", "BA", "PROPOSAL", "INVOICE", "MISC"];
 const DOC_TYPE_FOLDER: Record<string, string> = {
   PO: "PO", INV: "INVOICE", PROP: "PROPOSAL", QC: "QC",
   DRW: "DRW", BA: "BA", BAST: "BA", Q: "MISC", PL: "MISC", MISC: "MISC",
@@ -131,22 +120,29 @@ export function NimbusChat() {
   const [dragging, setDragging] = useState(false);
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
   const [pendingSearchResults, setPendingSearchResults] = useState<SearchResult[] | null>(null);
+  const [clients, setClients] = useState<ClientData[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Fix issue 2: deduplicate completion messages per doc_id
+  const reportedDoneRef = useRef<Set<string>>(new Set());
 
   const push = useCallback((msg: ChatMessage) => {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
-  // Auto-scroll
+  // Fetch clients for autocomplete dropdowns
+  useEffect(() => {
+    apiGet<ClientData[]>("/v1/nimbus/clients").then(setClients).catch(() => {});
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isThinking]);
 
-  // Queue polling
+  // Queue polling (just updates badge count, no messages)
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
     pollingRef.current = setInterval(async () => {
@@ -185,45 +181,81 @@ export function NimbusChat() {
     }
   }, []);
 
-  // ── Propose file ──────────────────────────────────────────────────────────
+  // ── Propose files (batched — fix issue 3) ────────────────────────────────
 
-  const proposeFile = useCallback(async (file: File) => {
-    push(mkMsg("user", "file-attach", file.name, { size: file.size }));
+  const proposeFiles = useCallback(async (files: File[]) => {
+    files.forEach((f) => push(mkMsg("user", "file-attach", f.name, { size: f.size })));
     setIsThinking(true);
 
-    const { doc_type, folder_category } = guessDocType(file.name);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("doc_type", doc_type);
-    fd.append("client_code", "CLIENT");
-    fd.append("project_code", "PROJECT");
-    fd.append("folder_category", folder_category);
-    fd.append("version", "V1");
+    const results = await Promise.allSettled(
+      files.map(async (file) => {
+        const { doc_type, folder_category } = guessDocType(file.name);
 
-    try {
-      const proposal = await apiPostForm<ProposalData>("/v1/nimbus/propose", fd);
-      setIsThinking(false);
+        // Fix issue 4: match filename against client DB
+        let client_code = "";
+        let project_code = "";
+        let matched_folder = folder_category;
+        try {
+          const match = await apiGet<MatchResult>(
+            `/v1/nimbus/match?filename=${encodeURIComponent(file.name)}`
+          );
+          if (match.confidence > 0.2 && match.client_code) {
+            client_code = match.client_code;
+            project_code = match.project_code ?? "";
+            if (match.default_folder_category && match.default_folder_category !== "MISC") {
+              matched_folder = match.default_folder_category;
+            }
+          }
+        } catch {
+          // match is best-effort
+        }
+
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("doc_type", doc_type);
+        fd.append("client_code", client_code || "CLIENT");
+        fd.append("project_code", project_code || "PROJECT");
+        fd.append("folder_category", matched_folder);
+        fd.append("version", "V1");
+
+        return await apiPostForm<ProposalData>("/v1/nimbus/propose", fd);
+      })
+    );
+
+    setIsThinking(false);
+
+    const successful = results
+      .filter((r): r is PromiseFulfilledResult<ProposalData> => r.status === "fulfilled")
+      .map((r) => r.value);
+    const failedCount = results.filter((r) => r.status === "rejected").length;
+
+    if (successful.length === 1) {
       push(mkMsg("nimbus", "proposal",
-        `Simpan sebagai nama berikut ya. Cek dulu, edit kalau perlu, baru approve.`,
-        proposal as unknown as Record<string, unknown>
+        "Simpan sebagai nama berikut ya. Cek dulu, edit kalau perlu, baru approve.",
+        successful[0] as unknown as Record<string, unknown>
       ));
-    } catch (err: unknown) {
-      setIsThinking(false);
-      const msg = err instanceof Error ? err.message : "Upload gagal";
-      push(mkMsg("nimbus", "text", `Hmm, ada masalah: ${msg}`));
+    } else if (successful.length > 1) {
+      push(mkMsg("nimbus", "batch-proposal",
+        `Ada **${successful.length} file** siap diarsipkan. Review dan approve ya.`,
+        { proposals: successful as unknown as Record<string, unknown>[] }
+      ));
+    }
+
+    if (failedCount > 0) {
+      push(mkMsg("nimbus", "text", `${failedCount} file gagal di-propose. Coba lagi?`));
     }
   }, [push]);
 
-  // Auto-propose first pending file when file added
+  // Batch-propose all pending files at once (fix issue 3)
   useEffect(() => {
     if (pendingFiles.length > 0 && !isThinking) {
-      const [first, ...rest] = pendingFiles;
-      setPendingFiles(rest);
-      proposeFile(first);
+      const toPropose = [...pendingFiles];
+      setPendingFiles([]);
+      proposeFiles(toPropose);
     }
-  }, [pendingFiles, isThinking, proposeFile]);
+  }, [pendingFiles, isThinking, proposeFiles]);
 
-  // ── Confirm proposal ──────────────────────────────────────────────────────
+  // ── Confirm single proposal ────────────────────────────────────────────────
 
   const confirmProposal = useCallback(async (proposalId: string, data: ProposalData) => {
     setIsThinking(true);
@@ -248,7 +280,6 @@ export function NimbusChat() {
       ]);
       startPolling();
 
-      // Poll for this specific doc completion
       const docId = res.doc_id;
       const checkDone = setInterval(async () => {
         try {
@@ -256,10 +287,14 @@ export function NimbusChat() {
           const stillInQueue = q.items.some((i) => i.doc_id === docId);
           if (!stillInQueue) {
             clearInterval(checkDone);
-            push(mkMsg("nimbus", "upload-success",
-              `File **${res.archived_filename}** sudah berhasil diarsipkan!\n\nPath: \`${res.drive_path}\`\n\nSudah saya notif ke email kamu juga.`,
-              { archived_filename: res.archived_filename, drive_path: res.drive_path }
-            ));
+            // Fix issue 2: only report done once per doc_id
+            if (!reportedDoneRef.current.has(docId)) {
+              reportedDoneRef.current.add(docId);
+              push(mkMsg("nimbus", "upload-success",
+                `File **${res.archived_filename}** sudah berhasil diarsipkan!\n\nPath: \`${res.drive_path}\`\n\nSudah saya notif ke email kamu juga.`,
+                { archived_filename: res.archived_filename, drive_path: res.drive_path }
+              ));
+            }
           }
         } catch {
           clearInterval(checkDone);
@@ -272,6 +307,14 @@ export function NimbusChat() {
       push(mkMsg("nimbus", "text", `Ups, gagal proses: ${msg}`));
     }
   }, [push, startPolling]);
+
+  // ── Confirm batch proposals ────────────────────────────────────────────────
+
+  const confirmBatch = useCallback(async (proposals: ProposalData[]) => {
+    for (const p of proposals) {
+      await confirmProposal(p.proposal_id, p);
+    }
+  }, [confirmProposal]);
 
   // ── Search ─────────────────────────────────────────────────────────────────
 
@@ -325,7 +368,6 @@ export function NimbusChat() {
     setInput("");
     push(mkMsg("user", "text", text));
 
-    // Detect number selection for search results
     if (pendingSearchResults) {
       const numMatch = text.match(/\b(\d+)\b/);
       if (numMatch) {
@@ -336,7 +378,6 @@ export function NimbusChat() {
           return;
         }
       }
-      // Non-number reply when search results pending
       if (isSearchQuery(text)) {
         await runSearch(text);
       } else {
@@ -347,20 +388,17 @@ export function NimbusChat() {
       return;
     }
 
-    // Detect search intent
     if (isSearchQuery(text)) {
       await runSearch(text);
       return;
     }
 
-    // Approve keyword
     const lc = text.toLowerCase();
     if (lc === "approve" || lc === "oke" || lc === "ok" || lc === "yes" || lc === "ya") {
       push(mkMsg("nimbus", "text", "Ada yang mau di-approve? Kalau file, klik tombol Approve di proposal card di atas."));
       return;
     }
 
-    // Default Nimbus reply
     push(mkMsg("nimbus", "text",
       `Oke. Kalau mau upload file, drop di sini atau klik lampiran. Kalau mau cari dokumen, ketik "cariin [nama/client/project]".`
     ));
@@ -394,7 +432,6 @@ export function NimbusChat() {
           </div>
         </div>
 
-        {/* Queue badge */}
         <AnimatePresence>
           {queueItems.length > 0 && (
             <motion.div
@@ -419,7 +456,9 @@ export function NimbusChat() {
             <MessageBubble
               key={msg.id}
               message={msg}
+              clients={clients}
               onProposalApprove={confirmProposal}
+              onBatchApprove={confirmBatch}
               onProposalCancel={() =>
                 push(mkMsg("nimbus", "text", "Oke, proposal dibatalkan. Ada yang lain?"))
               }
@@ -428,7 +467,6 @@ export function NimbusChat() {
           ))}
         </AnimatePresence>
 
-        {/* Thinking indicator */}
         <AnimatePresence>
           {isThinking && (
             <motion.div
@@ -478,7 +516,6 @@ export function NimbusChat() {
 
       {/* Input bar */}
       <div className="shrink-0 px-4 pb-4 pt-2 border-t border-white/10">
-        {/* Pending file chips */}
         <AnimatePresence>
           {pendingFiles.length > 0 && (
             <motion.div
@@ -562,12 +599,14 @@ export function NimbusChat() {
 
 interface BubbleProps {
   message: ChatMessage;
+  clients: ClientData[];
   onProposalApprove: (proposalId: string, data: ProposalData) => void;
+  onBatchApprove: (proposals: ProposalData[]) => void;
   onProposalCancel: () => void;
   onSelectResult: (docId: string, filename: string) => void;
 }
 
-function MessageBubble({ message, onProposalApprove, onProposalCancel, onSelectResult }: BubbleProps) {
+function MessageBubble({ message, clients, onProposalApprove, onBatchApprove, onProposalCancel, onSelectResult }: BubbleProps) {
   const isUser = message.role === "user";
 
   return (
@@ -577,15 +616,13 @@ function MessageBubble({ message, onProposalApprove, onProposalCancel, onSelectR
       exit={{ opacity: 0 }}
       className={cn("flex items-end gap-3", isUser && "flex-row-reverse")}
     >
-      {/* Avatar */}
       {!isUser && (
         <div className="w-7 h-7 rounded-full bg-pink-500/20 border border-pink-500/30 flex items-center justify-center shrink-0">
           <span className="text-[10px] font-bold text-pink-400">N</span>
         </div>
       )}
 
-      <div className={cn("flex flex-col gap-1 max-w-[80%]", isUser && "items-end")}>
-        {/* Bubble */}
+      <div className={cn("flex flex-col gap-1 max-w-[85%]", isUser && "items-end")}>
         {message.type === "text" && (
           <TextBubble content={message.content} isUser={isUser} />
         )}
@@ -595,12 +632,27 @@ function MessageBubble({ message, onProposalApprove, onProposalCancel, onSelectR
         )}
 
         {message.type === "proposal" && message.data && (
-          <div className={cn("w-full", isUser && "self-end")}>
+          <div className="w-full">
             <TextBubble content={message.content} isUser={false} />
             <div className="mt-2">
               <FileProposalCard
                 data={message.data as unknown as ProposalData}
+                clients={clients}
                 onApprove={onProposalApprove}
+                onCancel={onProposalCancel}
+              />
+            </div>
+          </div>
+        )}
+
+        {message.type === "batch-proposal" && message.data && (
+          <div className="w-full">
+            <TextBubble content={message.content} isUser={false} />
+            <div className="mt-2">
+              <BatchProposalCard
+                proposals={(message.data.proposals as unknown as ProposalData[]) ?? []}
+                clients={clients}
+                onApproveAll={onBatchApprove}
                 onCancel={onProposalCancel}
               />
             </div>
@@ -612,7 +664,7 @@ function MessageBubble({ message, onProposalApprove, onProposalCancel, onSelectR
             <TextBubble content={message.content} isUser={false} />
             <div className="mt-2">
               <SearchResultsCard
-                results={(message.data.results as unknown as SearchResult[]) ?? []}
+                results={(message.data.results as unknown as { id: string; archived_filename: string; doc_type: string; client_code: string; project_code: string; folder_category: string; status: string; version: string; created_at: string }[]) ?? []}
                 onSelect={onSelectResult}
               />
             </div>
@@ -636,7 +688,6 @@ function MessageBubble({ message, onProposalApprove, onProposalCancel, onSelectR
 }
 
 function TextBubble({ content, isUser }: { content: string; isUser: boolean }) {
-  // Simple markdown: **bold**, *italic*, `code`, \n
   const rendered = content
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
