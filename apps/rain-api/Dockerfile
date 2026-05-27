@@ -31,7 +31,7 @@ COPY packages/brain_mcp/ /app/packages/brain_mcp/
 
 # Install deps from the rain-api context
 WORKDIR /app/apps/rain-api
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev -v
 
 # Copy application source
 COPY apps/rain-api/src/ /app/apps/rain-api/src/
