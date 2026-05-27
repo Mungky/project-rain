@@ -31,6 +31,9 @@ COPY apps/rain-api/ /app/apps/rain-api/
 WORKDIR /app/apps/rain-api
 RUN uv sync --frozen --no-dev
 
+# Make entrypoint executable (LF line endings — handled by git on Windows checkouts via .gitattributes if needed)
+RUN chmod +x /app/apps/rain-api/entrypoint.sh
+
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "rain_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/apps/rain-api/entrypoint.sh"]

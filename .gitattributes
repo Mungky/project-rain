@@ -1,0 +1,6 @@
+# Force LF line endings for shell scripts and Dockerfiles
+# (Windows checkouts otherwise convert to CRLF which breaks Linux execution)
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+docker-compose*.yaml text eol=lf

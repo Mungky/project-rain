@@ -13,6 +13,15 @@ from schemas.base import Base
 # access to the values within the .ini file in use.
 config = context.config
 
+# Override sqlalchemy.url from POSTGRES_DSN env var (production).
+# Translate asyncpg driver -> psycopg2 since alembic runs sync.
+_dsn = os.environ.get("POSTGRES_DSN")
+if _dsn:
+    config.set_main_option(
+        "sqlalchemy.url",
+        _dsn.replace("postgresql+asyncpg://", "postgresql+psycopg2://"),
+    )
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
