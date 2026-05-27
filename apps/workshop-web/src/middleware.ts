@@ -53,5 +53,8 @@ First char of received user code: ${receivedUser.charCodeAt(0) || "(empty)"}
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg|manifest.json).*)"],
+  // PWA install needs unauthenticated access to manifest + icons + service worker.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon|apple-icon|.*\\.svg|.*\\.png).*)",
+  ],
 };
