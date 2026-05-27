@@ -26,33 +26,55 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Add model column to conversations with default
-    op.add_column(
-        'conversations', 
-        sa.Column(
-            'model', 
-            sa.String(length=100), 
-            server_default='kimi-k2.6:cloud', 
-            nullable=False, 
-            comment='LLM model identifier used for this conversation session.'
-        )
-    )
-    
-    # 2. Backfill: Update conversations' model from the latest message that had one
-    op.execute("""
-        UPDATE conversations c
-        SET model = m.model
-        FROM (
-            SELECT DISTINCT ON (conversation_id) conversation_id, model
-            FROM messages
-            WHERE model IS NOT NULL
-            ORDER BY conversation_id, created_at DESC
-        ) m
-        WHERE c.id = m.conversation_id
-    """)
+    # Idempotent for fresh DBs: the initial schema migration already created
+    # conversations.model, and messages.model may have never existed.
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    conv_cols = {c['name'] for c in inspector.get_columns('conversations')}
+    msg_cols = {c['name'] for c in inspector.get_columns('messages')}
 
-    # 3. Drop column from messages
-    op.drop_column('messages', 'model')
+    # 1. Add model column to conversations with default (only if missing)
+    if 'model' not in conv_cols:
+        op.add_column(
+            'conversations',
+            sa.Column(
+                'model',
+                sa.String(length=100),
+                server_default='kimi-k2.6:cloud',
+                nullable=False,
+                comment='LLM model identifier used for this conversation session.'
+            )
+        )
+
+    # 2. Backfill from messages.model (only if both columns existed before)
+    if 'model' in msg_cols and 'model' in conv_cols:
+        op.execute("""
+            UPDATE conversations c
+            SET model = m.model
+            FROM (
+                SELECT DISTINCT ON (conversation_id) conversation_id, model
+                FROM messages
+                WHERE model IS NOT NULL
+                ORDER BY conversation_id, created_at DESC
+            ) m
+            WHERE c.id = m.conversation_id
+        """)
+
+    # 3. Drop column from messages (only if it exists)
+    if 'model' in msg_cols:
+        op.drop_column('messages', 'model')
+
+    # Index on documents.user_id (idempotent)
+    doc_indexes = {i['name'] for i in inspector.get_indexes('documents')}
+    if 'ix_documents_user_id' not in doc_indexes:
+        op.create_index(op.f('ix_documents_user_id'), 'documents', ['user_id'], unique=False)
+
+    # Rename users.username constraint (idempotent)
+    user_constraints = {c['name'] for c in inspector.get_unique_constraints('users')}
+    if 'users_username_key' in user_constraints:
+        op.drop_constraint('users_username_key', 'users', type_='unique')
+    if 'uq_users_username' not in user_constraints:
+        op.create_unique_constraint(op.f('uq_users_username'), 'users', ['username'])
 
     # --- Catch-up: Apply naming conventions and missing comments ---
     # Conversations
@@ -64,8 +86,7 @@ def upgrade() -> None:
     op.alter_column('documents', 'id', existing_type=sa.UUID(), comment='Primary key (UUIDv4).')
     op.alter_column('documents', 'created_at', existing_type=postgresql.TIMESTAMP(timezone=True), comment='Row creation time (UTC).')
     op.alter_column('documents', 'updated_at', existing_type=postgresql.TIMESTAMP(timezone=True), comment='Last modification time (UTC).')
-    op.create_index(op.f('ix_documents_user_id'), 'documents', ['user_id'], unique=False)
-    
+
     # Messages
     op.alter_column('messages', 'conversation_id', existing_type=sa.UUID(), comment='Parent conversation.')
     op.alter_column('messages', 'role', existing_type=postgresql.ENUM('user', 'assistant', 'system', 'tool', name='message_role'), comment='Sender role.')
@@ -88,8 +109,6 @@ def upgrade() -> None:
     op.alter_column('users', 'username', existing_type=sa.VARCHAR(length=50), comment='Unique identifier for the user account.')
     op.alter_column('users', 'email', existing_type=sa.VARCHAR(length=255), comment='User email address.')
     op.alter_column('users', 'id', existing_type=sa.UUID(), comment='Primary key (UUIDv4).')
-    op.drop_constraint('users_username_key', 'users', type_='unique')
-    op.create_unique_constraint(op.f('uq_users_username'), 'users', ['username'])
 
 
 def downgrade() -> None:
