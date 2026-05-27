@@ -21,11 +21,13 @@ ENV PATH="/root/.local/bin:$PATH"
 COPY apps/rain-api/pyproject.toml apps/rain-api/uv.lock* /app/apps/rain-api/
 COPY packages/db/pyproject.toml /app/packages/db/
 COPY packages/rain_brain/pyproject.toml /app/packages/rain_brain/
-COPY pyproject.toml /app/
+COPY packages/brain_mcp/pyproject.toml /app/packages/brain_mcp/
+COPY pyproject.toml uv.lock* /app/
 
 # Copy package source for editable installs
 COPY packages/db/ /app/packages/db/
 COPY packages/rain_brain/ /app/packages/rain_brain/
+COPY packages/brain_mcp/ /app/packages/brain_mcp/
 
 # Install deps from the rain-api context
 WORKDIR /app/apps/rain-api
