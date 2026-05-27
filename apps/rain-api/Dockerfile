@@ -27,6 +27,9 @@ COPY packages/brain_mcp/ /app/packages/brain_mcp/
 # Copy rain-api source (also needed before sync for editable install)
 COPY apps/rain-api/ /app/apps/rain-api/
 
+# Skill bundles — synced into DB on container start by main.py lifespan.
+COPY skills_registry/ /app/skills_registry/
+
 # Install all deps + workspace editable installs
 WORKDIR /app/apps/rain-api
 RUN uv sync --frozen --no-dev
