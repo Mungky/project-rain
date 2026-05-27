@@ -113,8 +113,8 @@ class AnthropicProvider:
                             # Tool input streaming — handled at block_stop
                             pass
                     elif event.type == "content_block_stop":
-                        block = event.model_dump().get("content_block", {})
-                        if block.get("type") == "tool_use":
+                        block = event.model_dump().get("content_block")
+                        if block and block.get("type") == "tool_use":
                             try:
                                 args = block.get("input", {})
                                 if isinstance(args, str):

@@ -2,14 +2,12 @@
 
 from typing import AsyncIterator, Any
 from uuid import UUID
-from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, AsyncEngine
 from redis.asyncio import Redis
-import jwt
 
-_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
+DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 async def get_db_engine(request: Request) -> AsyncEngine:
@@ -45,36 +43,19 @@ def get_qdrant(request: Request):
     return request.app.state.qdrant
 
 
-async def get_current_user(
-    token: str = Depends(_oauth2_scheme),
-    db: AsyncSession = Depends(get_db),
-):
-    """Decode JWT and return the authenticated User row."""
-    from rain_backend.core.security import decode_access_token
+async def get_current_user(db: AsyncSession = Depends(get_db)):
+    """Return the default single user (auto-created at startup)."""
     from db.schemas import User
 
-    credentials_exc = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = decode_access_token(token)
-        user_id = UUID(payload["sub"])
-    except (jwt.InvalidTokenError, KeyError, ValueError):
-        raise credentials_exc
-
     result = await db.execute(
-        select(User).where(User.id == user_id, User.is_active == True)  # noqa: E712
+        select(User).where(User.id == DEFAULT_USER_ID)
     )
     user = result.scalar_one_or_none()
-    if not user:
-        raise credentials_exc
+    if user:
+        return user
+    # Fallback: create if missing (should not happen after startup bootstrap)
+    user = User(id=DEFAULT_USER_ID, username="rain")
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
     return user
-
-
-async def require_admin(current_user=Depends(get_current_user)):
-    """Raise 403 if the logged-in user is not an admin."""
-    if current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return current_user

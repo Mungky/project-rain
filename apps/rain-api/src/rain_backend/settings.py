@@ -24,7 +24,6 @@ class Settings(BaseSettings):
 
     # Persona default models
     drizzle_default_model: str = "kimi-k2.6:cloud"
-    nimbus_default_model: str = "gemini-3.1-flash-image-preview"
     shower_default_model: str = ""
     storm_default_model: str = ""
 
@@ -60,23 +59,6 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     backend_origin: str = "http://localhost:8000"
 
-    # Security
-    session_secret_key: str = "change-me-in-production-min-32-chars!!"
-
-    # Nimbus — Google Drive (OAuth2 personal account — preferred)
-    google_oauth_client_id: str | None = None
-    google_oauth_client_secret: str | None = None
-    google_oauth_refresh_token: str | None = None
-    nimbus_drive_root_folder_id: str | None = None
-
-    # Nimbus — Google Drive (service account — fallback, not usable on personal Drive)
-    google_service_account_json: str | None = None
-
-    # Nimbus — Gmail notification (app password)
-    gmail_sender: str | None = None
-    gmail_app_password: str | None = None
-    admin_email: str | None = "fikri.mmstaqim@gmail.com"
-
     # Cache TTLs (seconds)
     embedding_cache_ttl: int = 7 * 24 * 60 * 60  # 7 days
     llm_cache_ttl: int = 60 * 60  # 1 hour
@@ -84,10 +66,14 @@ class Settings(BaseSettings):
 
     @property
     def cors_allow_origins(self) -> list[str]:
-        """Returns list of allowed CORS origins."""
+        """Returns list of allowed CORS origins.
+
+        In production, frontend_origin may be a comma-separated list to
+        allow multiple origins (e.g., custom domain + Vercel preview URLs).
+        """
         if self.environment == "development":
             return ["http://localhost:3000", "http://127.0.0.1:3000"]
-        return [self.frontend_origin]
+        return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
 
     @property
     def providers_enabled(self) -> dict[str, bool]:

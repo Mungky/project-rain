@@ -24,7 +24,7 @@ class Conversation(Base, UUIDPKMixin, TimestampMixin, SoftDeleteMixin):
         String(20),
         nullable=False,
         server_default="drizzle",
-        comment="Active persona: drizzle (chat/tools), nimbus (generative), shower (quick-reply), or storm (orchestrator).",
+        comment="Active persona: drizzle (chat/tools), shower (quick-reply), or storm (orchestrator).",
     )
     auto_skills: Mapped[bool] = mapped_column(
         nullable=False,

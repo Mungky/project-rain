@@ -16,7 +16,6 @@ export const usePersonaStore = create<PersonaState>()(
       selectedPersona: "drizzle",
       activeModels: {
         drizzle: "",
-        nimbus: "",
         shower: "",
         storm: "",
       },

@@ -104,6 +104,7 @@ async def _extract_context_background(
     try:
         ollama = providers.get("ollama")
         if not ollama:
+            logger.debug("bg_extract: Ollama not configured, skipping context extraction")
             return
 
         # Resolve extraction model: use first available from candidate list
@@ -120,10 +121,10 @@ async def _extract_context_background(
                     if chat_models:
                         extraction_model = chat_models[0]
                     else:
-                        logger.debug("bg_extract: no chat-capable Ollama model found, skipping")
+                        logger.warning("bg_extract: no chat-capable Ollama model found, skipping")
                         return
                 else:
-                    logger.debug("bg_extract: no Ollama models available, skipping")
+                    logger.warning("bg_extract: no Ollama models available, skipping")
                     return
         except Exception:
             pass  # fall back to _EXTRACTION_MODEL
@@ -358,59 +359,6 @@ CONTEXT_TOOL: dict = {
 }
 
 
-async def _run_nimbus(
-    conversation_id: UUID,
-    user_message: str,
-    model: str,
-    providers: dict,
-    db: AsyncSession,
-    user_id: UUID,
-) -> AsyncIterator[ChatChunk]:
-    """Nimbus persona: generate an image from the prompt and stream as markdown."""
-    from rain_brain.providers.image_gen import generate_image
-
-    message_service = MessageService(db)
-
-    # Resolve API keys from user preferences
-    api_keys: dict | None = None
-    try:
-        pref_result = await db.execute(
-            select(UserPreference).where(UserPreference.user_id == user_id)
-        )
-        pref = pref_result.scalar_one_or_none()
-        if pref and pref.api_keys:
-            api_keys = pref.api_keys
-    except Exception:
-        pass
-
-    content_parts: list[str] = []
-
-    async for chunk in generate_image(user_message, model, providers, api_keys):
-        if chunk.type == "token":
-            content_parts.append(chunk.data)
-            yield chunk
-        elif chunk.type == "error":
-            yield chunk
-            return
-        # "done" from generate_image is replaced by our own below
-
-    assistant_content = "".join(content_parts)
-
-    try:
-        msg = await message_service.create_message(
-            conversation_id=conversation_id,
-            role=MessageRole.assistant,
-            content=assistant_content,
-            model=model,
-        )
-        await db.commit()
-        yield ChatChunk(type="done", data={"message_id": str(msg.id), "model": model})
-    except Exception as e:
-        await db.rollback()
-        logger.error("_run_nimbus: failed to save assistant message: %s", e)
-        yield ChatChunk(type="done", data={"model": model})
-
-
 async def _run_shower(
     conversation_id: UUID,
     user_message: str,
@@ -464,6 +412,23 @@ async def _run_shower(
     except Exception as e:
         logger.warning("_run_shower: failed to fetch user preferences: %s", e)
 
+    # Context Library: inject all active entries so Shower has full Brain awareness
+    try:
+        from rain_brain.services.context_service import ContextService
+        _ctx_service = ContextService(db)
+        _ctx_entries = await _ctx_service.list_entries(active_only=True)
+        if _ctx_entries:
+            _ctx_lines = [
+                f"- [{e.category or 'General'}] {e.title}: {e.content[:200]}"
+                for e in _ctx_entries
+            ]
+            system_instruction += (
+                "\n\nPINNED CONTEXT (use if relevant, ignore otherwise):\n"
+                + "\n".join(_ctx_lines)
+            )
+    except Exception as e:
+        logger.warning("_run_shower: failed to load context library: %s", e)
+
     # System + user only (no history for speed and token savings)
     messages = [
         {"role": "system", "content": system_instruction},
@@ -478,6 +443,8 @@ async def _run_shower(
         tools=None,
     )
 
+    total_in = 0
+    total_out = 0
     assistant_content = ""
     async for chunk in provider.chat(req):
         if chunk.type == "token":
@@ -611,7 +578,7 @@ async def run_chat(
                 model_caps = _row.capabilities
         except Exception:
             pass
-    if "image-gen" in model_caps and "chat" not in model_caps and persona != "nimbus":
+    if "image-gen" in model_caps and "chat" not in model_caps:
         yield ChatChunk(type="error", data={
             "code": "capability_mismatch",
             "message": f"'{model}' is an image generation model. Use the Generate Image feature to create images.",
@@ -714,8 +681,6 @@ async def run_chat(
         yield ChatChunk(type="error", data={"code": "database_error", "message": str(e)})
         return
 
-    prev_messages = list(conversation.messages or [])
-
     # --- 0. Pre-branch: check for Shower (quick-reply, no tools) ---
     if persona == "shower":
         async for chunk in _run_shower(
@@ -726,19 +691,6 @@ async def run_chat(
             db=db,
             user_id=conversation.user_id,
             current_date=datetime.now().strftime("%A, %B %d, %Y"),
-        ):
-            yield chunk
-        return
-
-    # Nimbus persona: delegate to image generation flow
-    if persona == "nimbus":
-        async for chunk in _run_nimbus(
-            conversation_id=conversation_id,
-            user_message=user_message,
-            model=model,
-            providers=providers,
-            db=db,
-            user_id=conversation.user_id,
         ):
             yield chunk
         return
@@ -818,10 +770,9 @@ async def run_chat(
         ctx_service = ContextService(db)
         ctx_entries = await ctx_service.list_entries(active_only=True)
         if ctx_entries:
-            # Inject only the 8 most recent entries; RAG handles semantic retrieval for the rest
             lines = [
                 f"- [{e.category or 'General'}] {e.title}: {e.content[:200]}"
-                for e in ctx_entries[:8]
+                for e in ctx_entries
             ]
             system_instruction += (
                 "\n\nPINNED CONTEXT (recent knowledge — use if relevant, ignore otherwise):\n"
@@ -849,8 +800,11 @@ async def run_chat(
             has_docs = docs_count.count > 0
             has_ctx = ctx_count.count > 0
 
-            if has_docs or has_ctx:
-                query_vectors = await providers["ollama"].embed([user_message])
+            _embed = providers.get("ollama")
+            if not _embed:
+                logger.warning("RAG: Ollama not available for embeddings — retrieval skipped. Start Ollama to enable Neural Archive search.")
+            elif has_docs or has_ctx:
+                query_vectors = await _embed.embed([user_message])
                 if query_vectors and len(query_vectors[0]) > 0:
                     all_chunks: list[dict] = []
 
@@ -979,7 +933,6 @@ async def run_chat(
             "python-executor",
         },
         "shower": set(),
-        "nimbus": set(),
     }
     _allowed_tools = _PERSONA_TOOL_ALLOWLIST.get(persona, set())
 

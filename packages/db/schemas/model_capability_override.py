@@ -27,7 +27,7 @@ class ModelCapabilityOverride(Base, TimestampMixin):
         String(20),
         nullable=False,
         server_default="drizzle",
-        comment="Persona category: drizzle (chat/tools), nimbus (generative), shower (quick-reply), or storm (orchestrator).",
+        comment="Persona category: drizzle (chat/tools), shower (quick-reply), or storm (orchestrator).",
     )
     tags: Mapped[list] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'"),

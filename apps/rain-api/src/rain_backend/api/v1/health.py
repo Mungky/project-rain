@@ -96,7 +96,8 @@ async def health_check(
     minio_ok = to_bool(results[3])
     qdrant_ok = to_bool(results[4])
     
-    overall_status = "ok" if all([ollama_ok, postgres_ok, redis_ok, minio_ok, qdrant_ok]) else "degraded"
+    # postgres + redis are required; ollama/minio/qdrant are optional Brain services
+    overall_status = "ok" if (postgres_ok and redis_ok) else "degraded"
     
     return HealthResponse(
         status=overall_status,

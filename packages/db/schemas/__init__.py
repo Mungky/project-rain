@@ -12,9 +12,6 @@ from .agent_run import AgentRun, AgentRunStatus
 from .agent_task import AgentTask, TaskStatus
 from .few_shot import FewShotEntry
 from .session_state import SessionState
-from .nimbus_document import NimbusDocument
-from .nimbus_client import NimbusClient
-from .nimbus_project import NimbusProject
 
 # Pydantic DTOs
 from .dto_common import UTCDatetime, ErrorResponse, HealthResponse, ModelResponse
@@ -72,9 +69,6 @@ __all__ = [
     "TaskStatus",
     "FewShotEntry",
     "SessionState",
-    "NimbusDocument",
-    "NimbusClient",
-    "NimbusProject",
     # DTOs — common
     "UTCDatetime",
     "ErrorResponse",

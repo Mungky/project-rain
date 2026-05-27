@@ -32,8 +32,17 @@ Thumbs.db
 *.egg-info
 .venv
 venv
-# Bun
-bun.lock
 # Test artifacts
 test-results
 playwright-report
+# Claude Code
+.claude/
+# Secrets & local state
+secrets/
+sandboxes/
+apps/rain-api/sandboxes/
+# Worktrees
+worktrees/
+parent/
+# TypeScript build cache
+*.tsbuildinfo

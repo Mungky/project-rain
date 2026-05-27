@@ -65,13 +65,13 @@ class Message(BaseModel):
 class CreateConversationRequest(BaseModel):
     """Request to create a new conversation."""
     title: str | None = Field(default=None, max_length=200)
-    persona: Literal["drizzle", "nimbus", "shower", "storm"] = "drizzle"
+    persona: Literal["drizzle", "shower", "storm"] = "drizzle"
 
 
 class UpdateConversationRequest(BaseModel):
     """Request to update conversation settings."""
     title: str | None = Field(default=None, max_length=200)
-    persona: Literal["drizzle", "nimbus", "shower", "storm"] | None = None
+    persona: Literal["drizzle", "shower", "storm"] | None = None
     auto_skills: bool | None = None
     enabled_skills: list[str] | None = None
 
@@ -99,7 +99,7 @@ class Conversation(BaseModel):
     id: UUID
     user_id: UUID
     title: str | None
-    persona: Literal["drizzle", "nimbus", "shower", "storm"] = "drizzle"
+    persona: Literal["drizzle", "shower", "storm"] = "drizzle"
     auto_skills: bool = True
     enabled_skills: list[str] = Field(default_factory=list)
     created_at: UTCDatetime
@@ -112,7 +112,7 @@ class ConversationResponse(BaseModel):
     id: UUID
     user_id: UUID
     title: str | None
-    persona: Literal["drizzle", "nimbus", "shower", "storm"] = "drizzle"
+    persona: Literal["drizzle", "shower", "storm"] = "drizzle"
     auto_skills: bool = True
     enabled_skills: list[str] = Field(default_factory=list)
     created_at: UTCDatetime

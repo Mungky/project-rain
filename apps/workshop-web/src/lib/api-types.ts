@@ -190,7 +190,7 @@ export interface UserPreferencesResponse {
   hidden_models: string[];
 }
 
-export type Persona = "drizzle" | "nimbus" | "shower" | "storm";
+export type Persona = "drizzle" | "shower" | "storm";
 
 export interface ConversationResponse {
   id: string;
@@ -314,14 +314,6 @@ export type DrizzleTag =
   | "hard_prompt_en"
   | "english";
 
-// Nimbus (generative) tags
-export type NimbusTag =
-  | "text_to_image"
-  | "image_editing"
-  | "text_to_video"
-  | "image_to_video"
-  | "video_edit";
-
 // Shower (quick-reply) tags
 export type ShowerTag =
   | "default"
@@ -346,7 +338,7 @@ export type StormTag =
   | "hard_prompt_en"
   | "english";
 
-export type ModelTag = DrizzleTag | NimbusTag | ShowerTag | StormTag;
+export type ModelTag = DrizzleTag | ShowerTag | StormTag;
 
 export const DRIZZLE_TAG_LABELS: Record<DrizzleTag, string> = {
   default:          "Default",
@@ -364,14 +356,6 @@ export const DRIZZLE_TAG_LABELS: Record<DrizzleTag, string> = {
   english:          "English",
 };
 
-export const NIMBUS_TAG_LABELS: Record<NimbusTag, string> = {
-  text_to_image:  "Text to Image",
-  image_editing:  "Image Editing",
-  text_to_video:  "Text to Video",
-  image_to_video: "Image to Video",
-  video_edit:     "Video Edit",
-};
-
 export const SHOWER_TAG_LABELS: Record<ShowerTag, string> = {
   default:          "Default",
   general_knowledge:"General Knowledge",
@@ -386,13 +370,11 @@ export const STORM_TAG_LABELS: Record<StormTag, string> = {
 
 export const MODEL_TAG_LABELS: Record<ModelTag, string> = {
   ...DRIZZLE_TAG_LABELS,
-  ...NIMBUS_TAG_LABELS,
   ...SHOWER_TAG_LABELS,
   ...STORM_TAG_LABELS,
 };
 
 export function getTagsForPersona(persona: string): ModelTag[] {
-  if (persona === "nimbus") return Object.keys(NIMBUS_TAG_LABELS) as NimbusTag[];
   if (persona === "shower") return Object.keys(SHOWER_TAG_LABELS) as ShowerTag[];
   if (persona === "storm") return Object.keys(STORM_TAG_LABELS) as StormTag[];
   return Object.keys(DRIZZLE_TAG_LABELS) as DrizzleTag[];

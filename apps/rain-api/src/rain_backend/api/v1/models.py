@@ -147,37 +147,6 @@ async def ping_model(
             
         # Try generating a response to test tools and reasoning
         from rain_brain.providers.base import ChatRequest
-        
-        if body.persona == "nimbus":
-            from rain_brain.providers.image_gen import generate_image
-            found_image = False
-            async for chunk in generate_image(
-                prompt="A tiny black dot",
-                model=body.model_id,
-                providers={body.provider: provider},
-                api_keys=provider_cfg,
-            ):
-                if chunk.type == "error":
-                    err_data = chunk.data
-                    err_msg = err_data.get("message") if isinstance(err_data, dict) else str(err_data)
-                    return PingResponse(
-                        reachable=False,
-                        model_id=body.model_id,
-                        provider=body.provider,
-                        error=err_msg,
-                    )
-                if chunk.type == "token" and isinstance(chunk.data, str) and "![Generated image]" in chunk.data:
-                    found_image = True
-                    break
-
-            if not found_image:
-                return PingResponse(
-                    reachable=False,
-                    model_id=body.model_id,
-                    provider=body.provider,
-                    error=f"Model '{body.model_id}' failed to generate an image. Output was text-only.",
-                )
-            return PingResponse(reachable=True, model_id=body.model_id, provider=body.provider)
 
         tools = None
         if body.persona == "drizzle" or body.persona == "storm":

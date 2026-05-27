@@ -23,7 +23,6 @@ class BrainSettings(BaseSettings):
 
     # Persona default models (resolved via model-management tags at runtime)
     drizzle_default_model: str = ""
-    nimbus_default_model: str = "gemini-3.1-flash-image-preview"
     shower_default_model: str = ""
     storm_default_model: str = ""
 

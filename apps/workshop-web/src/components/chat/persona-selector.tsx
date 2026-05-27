@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Cloud, Sparkles, Droplets, Zap, ChevronDown } from "lucide-react";
+import { Cloud, Droplets, Zap, ChevronDown } from "lucide-react";
 import type { Persona } from "@/lib/api-types";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
@@ -13,13 +13,6 @@ const PERSONA_CONFIG = {
     subtitle: "Chat & Tools",
     activeClass: "bg-sky-500/20 border-sky-500/30 text-sky-300",
     lockedClass: "bg-sky-500/10 border-sky-500/20 text-sky-400/70",
-  },
-  nimbus: {
-    icon: Sparkles,
-    label: "Nimbus",
-    subtitle: "Generative",
-    activeClass: "bg-pink-500/20 border-pink-500/30 text-pink-300",
-    lockedClass: "bg-pink-500/10 border-pink-500/20 text-pink-400/70",
   },
   shower: {
     icon: Droplets,
@@ -98,7 +91,7 @@ export function PersonaSelector({
               className="absolute bottom-full right-0 mb-3 w-48 z-50 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 backdrop-blur-2xl shadow-2xl"
             >
               <div className="p-2 space-y-0.5">
-                {(["drizzle", "nimbus", "shower", "storm"] as Persona[]).map((p) => {
+                {(["drizzle", "shower", "storm"] as Persona[]).map((p) => {
                   const pc = PERSONA_CONFIG[p];
                   const isActive = value === p;
                   return (

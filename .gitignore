@@ -23,6 +23,23 @@ out/
 .env
 .env.*
 !.env.example
+!.env.production.example
+secrets/
+*.key
+*.pem
+credentials.json
+service_account*.json
+.claude/settings.local.json
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# Local sandboxes (code-server volume)
+sandboxes/
+apps/rain-api/sandboxes/
+
+# Build artifacts
+*.tsbuildinfo
 
 # Logs
 *.log

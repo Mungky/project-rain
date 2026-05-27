@@ -6,7 +6,6 @@ import { useDocuments } from "@/hooks/use-documents";
 import { GlassPanel } from "@/components/identity/glass-panel";
 import { motion } from "framer-motion";
 import { useUIStore } from "@/stores/ui-store";
-import { useAuthStore } from "@/stores/auth-store";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock, MessageSquare, Database, Activity, ArrowRight, Plus } from "lucide-react";
@@ -16,7 +15,7 @@ export default function ChatPage() {
   const { data: health } = useHealth();
   const { data: docs } = useDocuments();
   const setShowRain = useUIStore((s) => s.setShowRain);
-  const username = useAuthStore((s) => s.user?.username ?? "Operator");
+  const username = "Operator";
 
   useEffect(() => {
     setShowRain(true);

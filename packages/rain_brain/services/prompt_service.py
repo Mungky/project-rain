@@ -88,7 +88,6 @@ class ModelCapabilityService:
     # Auto-derived capabilities for each persona
     _PERSONA_CAPS: dict[str, list[str]] = {
         "drizzle": ["chat", "tools"],
-        "nimbus":  ["image-gen"],
         "shower":  ["chat"],
         "storm":   ["chat", "tools", "vision", "thinking", "image-gen"],
     }

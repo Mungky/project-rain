@@ -33,15 +33,12 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import text
+from sqlalchemy import text, select
 from redis.asyncio import Redis
 
 # Now we can safely import internal modules
 from rain_backend.settings import settings
 from rain_backend.api.v1 import (
-    auth_router,
-    nimbus_router,
-    nimbus_db_router,
     health_router,
     conversations_router,
     messages_router,
@@ -98,8 +95,6 @@ async def lifespan(app: FastAPI):
             pool_pre_ping=True,
         )
         logger.info("PostgreSQL engine created")
-        from rain_backend.api.v1.nimbus import init_nimbus_engine
-        init_nimbus_engine(app.state.db_engine)
     except Exception as e:
         logger.error(f"PostgreSQL engine creation failed: {e}")
         app.state.db_engine = None
@@ -110,6 +105,19 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("SELECT 1"))
                 await conn.commit()
             logger.info("PostgreSQL connection verified")
+
+            # Ensure default user exists (single-user mode)
+            from rain_backend.api.deps import DEFAULT_USER_ID
+            from db.schemas import User
+            from sqlalchemy.ext.asyncio import async_sessionmaker
+            session_factory = async_sessionmaker(app.state.db_engine, expire_on_commit=False)
+            async with session_factory() as session:
+                result = await session.execute(select(User).where(User.id == DEFAULT_USER_ID))
+                if not result.scalar_one_or_none():
+                    default_user = User(id=DEFAULT_USER_ID, username="rain")
+                    session.add(default_user)
+                    await session.commit()
+                    logger.info("Created default user 'rain'")
         except Exception as e:
             logger.warning(f"PostgreSQL initial connection test failed (will retry on use via pool_pre_ping): {e}")
 
@@ -269,9 +277,6 @@ def create_app() -> FastAPI:
         )
     
     # Register API routers
-    app.include_router(auth_router, prefix="/v1/auth", tags=["auth"])
-    app.include_router(nimbus_router, prefix="/v1/nimbus", tags=["nimbus"])
-    app.include_router(nimbus_db_router, prefix="/v1/nimbus", tags=["nimbus-db"])
     app.include_router(health_router, prefix="/v1", tags=["health"])
     app.include_router(conversations_router, prefix="/v1/conversations", tags=["conversations"])
     app.include_router(messages_router, prefix="/v1", tags=["messages"])

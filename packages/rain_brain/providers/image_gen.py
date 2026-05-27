@@ -1,4 +1,4 @@
-"""Provider-agnostic image generation for Nimbus persona."""
+"""Provider-agnostic image generation."""
 
 import asyncio
 import base64
@@ -27,7 +27,7 @@ async def generate_image(
         yield ChatChunk(
             type="error",
             data={
-                "code": "nimbus_unsupported",
+                "code": "image_unsupported",
                 "message": (
                     f"Model '{model}' does not support image generation. "
                     "Configure a Gemini or DALL-E model for the Nimbus persona in Settings."
@@ -108,13 +108,13 @@ async def _gemini_image(
     except asyncio.TimeoutError:
         yield ChatChunk(
             type="error",
-            data={"code": "nimbus_timeout", "message": "Image generation timed out after 120s."},
+            data={"code": "image_timeout", "message": "Image generation timed out after 120s."},
         )
     except Exception as e:
         logger.error("Gemini image gen error: %s", e)
         yield ChatChunk(
             type="error",
-            data={"code": "nimbus_error", "message": str(e)},
+            data={"code": "image_error", "message": str(e)},
         )
 
 
@@ -172,11 +172,11 @@ async def _openai_image(
     except asyncio.TimeoutError:
         yield ChatChunk(
             type="error",
-            data={"code": "nimbus_timeout", "message": "Image generation timed out after 120s."},
+            data={"code": "image_timeout", "message": "Image generation timed out after 120s."},
         )
     except Exception as e:
         logger.error("OpenAI image gen error: %s", e)
         yield ChatChunk(
             type="error",
-            data={"code": "nimbus_error", "message": str(e)},
+            data={"code": "image_error", "message": str(e)},
         )
