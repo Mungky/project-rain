@@ -115,11 +115,13 @@ export function SettingsModal() {
 
   type ProviderName = "anthropic" | "openai" | "google" | "ollama";
 
+  const OLLAMA_CLOUD_URL = "https://ollama.com";
+
   const [providerForm, setProviderForm] = useState<Record<ProviderName, { key: string; base_url: string }>>({
     anthropic: { key: "", base_url: "" },
     openai:    { key: "", base_url: "" },
     google:    { key: "", base_url: "" },
-    ollama:    { key: "", base_url: "http://localhost:11434" },
+    ollama:    { key: "", base_url: OLLAMA_CLOUD_URL },
   });
   const [showKeys, setShowKeys] = useState<Record<ProviderName, boolean>>({
     anthropic: false, openai: false, google: false, ollama: false,
@@ -132,17 +134,22 @@ export function SettingsModal() {
         anthropic: { key: prefs.providers.anthropic.key ?? "", base_url: "" },
         openai:    { key: prefs.providers.openai.key ?? "",    base_url: "" },
         google:    { key: prefs.providers.google.key ?? "",    base_url: "" },
-        ollama:    { key: "",                                  base_url: prefs.providers.ollama.base_url ?? "http://localhost:11434" },
+        ollama:    { key: prefs.providers.ollama.key ?? "",    base_url: OLLAMA_CLOUD_URL },
       });
     }
   }, [prefs]);
 
   const handleSaveProvider = (name: ProviderName) => {
     const cfg = providerForm[name];
-    const isLocal = name === "ollama";
-    const enabled = isLocal ? true : cfg.key.trim().length > 0;
+    const enabled = cfg.key.trim().length > 0;
+    const payload: { enabled: boolean; key: string; base_url?: string } = {
+      enabled,
+      key: cfg.key,
+    };
+    // Always pin Ollama to Cloud endpoint
+    if (name === "ollama") payload.base_url = OLLAMA_CLOUD_URL;
     updatePrefs.mutate(
-      { providers: { [name]: { enabled, key: cfg.key, base_url: cfg.base_url } } },
+      { providers: { [name]: payload } },
       {
         onSuccess: () => {
           setSavedProvider(name);
@@ -318,13 +325,12 @@ export function SettingsModal() {
 
                     {(["anthropic", "openai", "google", "ollama"] as ProviderName[]).map((name) => {
                       const cfg = providerForm[name];
-                      const isLocal = name === "ollama";
                       const isSaved = savedProvider === name;
                       const labels: Record<ProviderName, { title: string; subtitle: string; placeholder: string }> = {
-                        anthropic: { title: "Anthropic", subtitle: "Claude Opus 4.7, Sonnet 4.6, Haiku 4.5", placeholder: "sk-ant-..." },
-                        openai:    { title: "OpenAI",    subtitle: "GPT-5.4, GPT-5.4-mini, GPT-Image-2",   placeholder: "sk-..." },
-                        google:    { title: "Google",    subtitle: "Gemini 3.1 Pro, Flash, Image preview",  placeholder: "AIza..." },
-                        ollama:    { title: "Ollama",    subtitle: "Local models",                          placeholder: "http://localhost:11434" },
+                        anthropic: { title: "Anthropic",    subtitle: "Claude Opus 4.7, Sonnet 4.6, Haiku 4.5", placeholder: "sk-ant-..." },
+                        openai:    { title: "OpenAI",       subtitle: "GPT-5.4, GPT-5.4-mini, GPT-Image-2",     placeholder: "sk-..." },
+                        google:    { title: "Google",       subtitle: "Gemini 3.1 Pro, Flash, Image preview",   placeholder: "AIza..." },
+                        ollama:    { title: "Ollama Cloud", subtitle: "ollama.com — Kimi, GLM, Gemma, Qwen",    placeholder: "Paste Ollama Cloud API key" },
                       };
                       const meta = labels[name];
 
@@ -337,28 +343,24 @@ export function SettingsModal() {
                           <div className="px-5 pb-4 space-y-3">
                             <div className="relative">
                               <input
-                                type={isLocal || showKeys[name] ? "text" : "password"}
-                                value={isLocal ? cfg.base_url : cfg.key}
+                                type={showKeys[name] ? "text" : "password"}
+                                value={cfg.key}
                                 onChange={(e) =>
                                   setProviderForm(prev => ({
                                     ...prev,
-                                    [name]: isLocal
-                                      ? { ...prev[name], base_url: e.target.value }
-                                      : { ...prev[name], key: e.target.value },
+                                    [name]: { ...prev[name], key: e.target.value },
                                   }))
                                 }
                                 placeholder={meta.placeholder}
                                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-xs text-white font-mono focus:ring-1 focus:ring-white/30 outline-none transition-all placeholder:text-white/10"
                               />
-                              {!isLocal && (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowKeys(prev => ({ ...prev, [name]: !prev[name] }))}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60 transition-colors"
-                                >
-                                  {showKeys[name] ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => setShowKeys(prev => ({ ...prev, [name]: !prev[name] }))}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60 transition-colors"
+                              >
+                                {showKeys[name] ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
                             </div>
                             <button
                               onClick={() => handleSaveProvider(name)}

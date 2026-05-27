@@ -104,7 +104,7 @@ _DEFAULT_PROVIDERS: dict[str, dict] = {
     "anthropic": {"enabled": False, "key": ""},
     "openai":    {"enabled": False, "key": ""},
     "google":    {"enabled": False, "key": ""},
-    "ollama":    {"enabled": True,  "base_url": "http://localhost:11434"},
+    "ollama":    {"enabled": True,  "key": "", "base_url": "https://ollama.com"},
 }
 
 
