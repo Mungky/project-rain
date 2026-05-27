@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
+    ollama_api_key: str | None = None  # Required for Ollama Cloud (ollama.com)
     ollama_default_model: str = "kimi-k2.6:cloud"
     ollama_keep_alive_minutes: int = 5
     ollama_embedding_model: str = "nomic-embed-text"

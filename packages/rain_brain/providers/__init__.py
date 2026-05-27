@@ -35,7 +35,7 @@ PROVIDERS: dict[str, Type[Provider]] = {
 def get_provider(name: str) -> Provider | None:
     """Get an initialized provider instance by name."""
     if name == "ollama":
-        return OllamaProvider(base_url=brain_settings.ollama_base_url)
+        return OllamaProvider(base_url=brain_settings.ollama_base_url, api_key=brain_settings.ollama_api_key)
     if name == "anthropic" and brain_settings.anthropic_api_key:
         return AnthropicProvider(api_key=brain_settings.anthropic_api_key)
     if name == "openai" and brain_settings.openai_api_key:
@@ -50,7 +50,7 @@ async def build_providers(settings) -> dict[str, Provider]:
     providers: dict[str, Provider] = {}
     
     # Ollama is always enabled
-    providers["ollama"] = OllamaProvider(base_url=brain_settings.ollama_base_url)
+    providers["ollama"] = OllamaProvider(base_url=brain_settings.ollama_base_url, api_key=brain_settings.ollama_api_key)
     
     # Phase 2+ providers based on config
     if brain_settings.anthropic_api_key:

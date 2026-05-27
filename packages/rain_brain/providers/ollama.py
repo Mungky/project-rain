@@ -21,19 +21,29 @@ def _parse_xml_tool_calls(xml: str) -> list[dict]:
 
 
 class OllamaProvider:
-    """Provider for local Ollama server."""
+    """Provider for Ollama server (local or cloud)."""
 
     name = "ollama"
 
-    def __init__(self, base_url: str | None = None, timeout: float = 300.0):
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        timeout: float = 300.0,
+    ):
         url = base_url or brain_settings.ollama_base_url
         if not url.endswith("/"):
             url += "/"
         self._base_url = url
         self._timeout = timeout
+        # Ollama Cloud (ollama.com) authenticates via Bearer token.
+        # Local Ollama ignores Authorization header.
+        key = api_key if api_key is not None else brain_settings.ollama_api_key
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
         self._client = httpx.AsyncClient(
             base_url=self._base_url,
             timeout=self._timeout,
+            headers=headers,
         )
 
     async def list_models(self) -> list[str]:

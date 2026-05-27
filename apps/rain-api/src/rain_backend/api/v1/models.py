@@ -34,7 +34,10 @@ async def _build_fresh_provider(name: str, cfg: dict):
     """Build a provider instance from user-stored config. Returns None if unusable."""
     try:
         if name == "ollama":
-            return OllamaProvider(base_url=cfg.get("base_url", "http://localhost:11434"))
+            return OllamaProvider(
+                base_url=cfg.get("base_url", "http://localhost:11434"),
+                api_key=(cfg.get("key") or "").strip() or None,
+            )
         key = cfg.get("key", "").strip()
         if not key:
             return None
