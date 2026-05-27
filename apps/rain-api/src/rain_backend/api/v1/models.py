@@ -119,6 +119,31 @@ async def list_models(
     return all_models
 
 
+@router.get("/_debug/ollama")
+async def debug_ollama(db: AsyncSession = Depends(get_db)):
+    """TEMP: inspect what _build_fresh_provider produces for Ollama vs startup."""
+    from rain_brain.config import brain_settings
+    result = await db.execute(
+        select(UserPreference).where(UserPreference.user_id == DEFAULT_USER_ID)
+    )
+    pref = result.scalar_one_or_none()
+    cfg = (pref.api_keys or {}).get("ollama", {}) if pref else {}
+
+    fresh = await _build_fresh_provider("ollama", cfg)
+    fresh_models = await fresh.list_models() if fresh else []
+
+    return {
+        "commit_marker": "51e49cb-or-later",
+        "brain_settings.ollama_base_url": brain_settings.ollama_base_url,
+        "brain_settings.ollama_api_key_len": len(brain_settings.ollama_api_key or ""),
+        "stored_cfg": cfg,
+        "fresh_provider_base_url": fresh._base_url if fresh else None,
+        "fresh_provider_has_auth": "Authorization" in (fresh._client.headers if fresh else {}),
+        "fresh_models_count": len(fresh_models),
+        "fresh_models_sample": fresh_models[:5],
+    }
+
+
 @router.post("/ping", response_model=PingResponse)
 async def ping_model(
     body: PingRequest,
