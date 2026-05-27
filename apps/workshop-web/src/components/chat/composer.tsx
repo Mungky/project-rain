@@ -44,7 +44,6 @@ export function Composer({
   const { mutate } = useSendMessage();
   const isStreaming = useStreamingStore((s) => conversationId in s.activeStreams);
   const abortController = useStreamingStore((s) => s.activeStreams[conversationId]);
-  const tokensUsed = useStreamingStore((s) => s.tokensUsed);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
 
@@ -343,21 +342,6 @@ export function Composer({
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Token usage indicator */}
-            {tokensUsed > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="h-1 w-16 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-white/40 transition-all duration-500"
-                    style={{ width: `${Math.min((tokensUsed / 8192) * 100, 100)}%` }}
-                  />
-                </div>
-                <span className="text-[10px] font-mono text-white/20 tabular-nums">
-                  {tokensUsed.toLocaleString()}
-                </span>
-              </div>
-            )}
-
             {/* Persona Selector */}
             <PersonaSelector
               value={effectivePersona}

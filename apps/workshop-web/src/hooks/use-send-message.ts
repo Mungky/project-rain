@@ -201,6 +201,24 @@ export function useSendMessage() {
             setTimeout(() => {
               queryClient.invalidateQueries({ queryKey: ["context"] });
             }, 6000);
+
+            // Auto-generate a proper title after the first AI response.
+            // Per-tab guard via sessionStorage so we only fire once per
+            // conversation per browser session.
+            try {
+              const flagKey = `rain:auto-titled:${conversationId}`;
+              if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(flagKey)) {
+                sessionStorage.setItem(flagKey, "1");
+                fetch(apiUrl(`/v1/conversations/${conversationId}/auto-title`), { method: "POST" })
+                  .then(() => {
+                    queryClient.invalidateQueries({ queryKey: qk });
+                    queryClient.invalidateQueries({ queryKey: conversationKeys.list() });
+                  })
+                  .catch((err) => console.warn("[auto-title] failed:", err));
+              }
+            } catch {
+              // sessionStorage unavailable — skip
+            }
             return chunk.data;
           } else if (chunk.type === "error") {
             const errorData = chunk.data as { code: string; message: string };

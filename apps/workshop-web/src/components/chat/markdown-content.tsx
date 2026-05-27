@@ -128,6 +128,29 @@ const CodeBlock = ({ className, children, ...props }: any) => {
   const isBlock = match || codeText.includes("\n");
   const lang = match?.[1] ?? "text";
 
+  // If LLM wraps a markdown table (or any markdown) in a ```markdown``` fence,
+  // re-render it as markdown instead of showing raw |---| syntax. Detect by
+  // explicit language tag OR by markdown table signature (| ... | --- | ...).
+  const isMarkdownTable =
+    isBlock &&
+    (lang === "markdown" || lang === "md" ||
+      /\|.*\|\s*\n\s*\|[\s:-]*\|/.test(codeText));
+  if (isMarkdownTable) {
+    return (
+      <div className="my-4">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            table: ({ children }) => <SortableTable>{children}</SortableTable>,
+            th: ({ children }) => <Th>{children}</Th>,
+          }}
+        >
+          {codeText}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
   const handleCopy = () => {
     navigator.clipboard.writeText(codeText);
     setCopied(true);
@@ -180,6 +203,14 @@ const CodeBlock = ({ className, children, ...props }: any) => {
           style={vscDarkPlus as any}
           language={lang}
           PreTag="div"
+          showLineNumbers={showLines}
+          lineNumberStyle={{
+            minWidth: "2.5em",
+            paddingRight: "1em",
+            color: "rgba(255,255,255,0.2)",
+            fontSize: "0.75rem",
+            userSelect: "none",
+          }}
           customStyle={{
             margin: 0,
             padding: "1.5rem",

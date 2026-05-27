@@ -60,6 +60,7 @@ export function MessageBubble({
           <ThinkingBlock
             content={message.reasoning_content ?? ""}
             streaming={!!message.streaming}
+            answerStarted={!!message.content}
             reactSteps={message.react_steps}
             toolEvents={message.tool_events}
           />
@@ -106,12 +107,15 @@ export function MessageBubble({
           </div>
         )}
 
-        <div className="text-sm leading-relaxed overflow-hidden">
-          <MarkdownContent
-            content={message.content || ""}
-          />
-          {!message.content && message.streaming && !message._cancelled && <StreamingIndicator />}
-        </div>
+        {/* Answer area: hidden while the model is still in the reasoning phase
+            (has reasoning_content but no tokens yet). The ThinkingBlock above
+            shows progress; the answer is revealed once the first token lands. */}
+        {(message.content || (!message.reasoning_content && message.streaming && !message._cancelled)) && (
+          <div className="text-sm leading-relaxed overflow-hidden">
+            <MarkdownContent content={message.content || ""} />
+            {!message.content && message.streaming && !message._cancelled && <StreamingIndicator />}
+          </div>
+        )}
         
         {message.error && (
           <div className="mt-2 text-xs text-rose-500 font-mono bg-rose-500/10 p-3 rounded-lg border border-rose-500/20 space-y-2">

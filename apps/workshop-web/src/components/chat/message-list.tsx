@@ -66,9 +66,13 @@ export function MessageList({
     }
     prevMessagesLength.current = messages.length;
 
-    // Auto scroll logic only when streaming and user hasn't scrolled up
+    // Auto scroll during streaming: use instant scroll, not smooth.
+    // Smooth on every token stacks animations → jittery shake.
     if (isStreaming && !userScrolledUp) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      const el = containerRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
     }
   }, [messages, isStreaming, userScrolledUp]);
 

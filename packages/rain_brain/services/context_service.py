@@ -136,11 +136,30 @@ class ContextService:
         qdrant_client: AsyncQdrantClient | None = None,
         embed_provider=None,
     ) -> list[ContextEntry]:
-        """Batch-create entries extracted from a conversation."""
+        """Batch-create entries extracted from a conversation.
+
+        Deduplicates against existing rows by case-insensitive title match
+        for the active user, so re-asking similar questions doesn't pile up
+        identical "Rayleigh Scattering" fragments in the side panel.
+        """
+        # Snapshot existing titles once, then guard against intra-batch dupes too.
+        existing_titles_q = select(ContextEntry.title).where(
+            ContextEntry.user_id == DEFAULT_USER_ID,
+            ContextEntry.is_active.is_(True),
+        )
+        existing_rows = await self.db.execute(existing_titles_q)
+        seen: set[str] = {(t or "").strip().lower() for (t,) in existing_rows.all()}
+
         created = []
         for e in entries:
+            title = (e.get("title") or "").strip()
+            key = title.lower()
+            if not title or key in seen:
+                logger.info("skip duplicate context fragment: %r", title)
+                continue
+            seen.add(key)
             entry = await self.create_entry(
-                title=e["title"],
+                title=title,
                 content=e["content"],
                 category=e.get("category"),
                 subcategory=e.get("subcategory"),

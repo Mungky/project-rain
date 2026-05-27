@@ -10,6 +10,8 @@ import type { ReactStep, ToolEvent } from "@/lib/api-types";
 interface ThinkingBlockProps {
   content: string;
   streaming?: boolean;
+  /** True once first token of the actual answer has arrived. */
+  answerStarted?: boolean;
   reactSteps?: ReactStep[] | null;
   toolEvents?: ToolEvent[] | null;
 }
@@ -32,11 +34,14 @@ function toolLabel(name: string): string {
     .replace(/_/g, " ");
 }
 
-export function ThinkingBlock({ content, streaming = false, reactSteps, toolEvents }: ThinkingBlockProps) {
+export function ThinkingBlock({ content, streaming = false, answerStarted = false, reactSteps, toolEvents }: ThinkingBlockProps) {
   const hasReact = Boolean(reactSteps && reactSteps.length > 0);
   const hasTools = Boolean(toolEvents && toolEvents.length > 0);
   const hasReasoning = Boolean(content && content.trim().length > 0);
   const hasContent = hasReact || hasReasoning || hasTools;
+  // Reasoning phase = still streaming AND no answer tokens yet.
+  // Once first token arrives, reasoning is done by backend definition.
+  const isReasoning = streaming && !answerStarted;
 
   const [expanded, setExpanded] = useState(false);
   const [elapsedSecs, setElapsedSecs] = useState(0);
@@ -51,32 +56,34 @@ export function ThinkingBlock({ content, streaming = false, reactSteps, toolEven
     if (hasContent) setHasEverHadContent(true);
   }, [hasContent]);
 
-  // Auto-collapse when streaming finishes
-  // Only auto-collapse if the component was in streaming mode (not after a re-fetch remount)
+  // Auto-collapse when reasoning phase ends (i.e., when answer starts or stream
+  // completes). Previously waited until ALL streaming ended which kept the
+  // "Thinking…" panel visible while the answer was already being written.
   useEffect(() => {
     if (streaming) hasStreamedRef.current = true;
-    if (!streaming && hasStreamedRef.current && expanded) {
-      // Small delay so user can see the final content before collapsing
-      const timer = setTimeout(() => setExpanded(false), 1500);
+    if (!isReasoning && hasStreamedRef.current && expanded) {
+      const timer = setTimeout(() => setExpanded(false), 600);
       return () => clearTimeout(timer);
     }
-  }, [streaming, expanded]);
+  }, [isReasoning, streaming, expanded]);
 
+  // Tick the elapsed counter only during the reasoning phase. Stop once the
+  // answer starts so users see a stable "Thought for Xs" label.
   useEffect(() => {
-    if (streaming && !startRef.current) {
+    if (isReasoning && !startRef.current) {
       startRef.current = Date.now();
       timerRef.current = setInterval(() => {
         setElapsedSecs(Math.floor((Date.now() - startRef.current!) / 1000));
       }, 1000);
     }
-    if (!streaming && timerRef.current) {
+    if (!isReasoning && timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [streaming]);
+  }, [isReasoning]);
 
   // Parse lines starting with - or * or just text as steps
   const thoughtSteps = content
@@ -91,16 +98,18 @@ export function ThinkingBlock({ content, streaming = false, reactSteps, toolEven
     : null;
 
   // Estimate progress based on elapsed time (0–30s range, caps at 95%)
-  const progressPct = streaming ? Math.min((elapsedSecs / 30) * 100, 95) : 100;
+  const progressPct = isReasoning ? Math.min((elapsedSecs / 30) * 100, 95) : 100;
 
   // Show the block during streaming OR after content has appeared
   if (!streaming && !hasEverHadContent && !hasContent) return null;
 
-  const headerLabel = streaming
+  const headerLabel = isReasoning
     ? elapsedSecs > 0
       ? `Thinking… ${elapsedSecs}s`
       : "Thinking…"
-    : "Thought process";
+    : elapsedSecs > 0
+      ? `Thought for ${elapsedSecs}s`
+      : "Thought process";
 
   return (
     <div className="mb-4">
@@ -111,7 +120,7 @@ export function ThinkingBlock({ content, streaming = false, reactSteps, toolEven
         <Brain
           className={cn(
             "w-3.5 h-3.5 transition-colors shrink-0",
-            streaming ? "text-amber-400 animate-pulse" : "text-white/30",
+            isReasoning ? "text-amber-400 animate-pulse" : "text-white/30",
           )}
         />
         <span className="uppercase tracking-widest">{headerLabel}</span>
@@ -128,8 +137,8 @@ export function ThinkingBlock({ content, streaming = false, reactSteps, toolEven
         />
       </button>
 
-      {/* Cosmetic progress bar */}
-      {streaming && (
+      {/* Cosmetic progress bar — only during the reasoning phase */}
+      {isReasoning && (
         <div className="h-[2px] w-full bg-white/5 rounded-full overflow-hidden mt-1">
           <motion.div
             className="h-full bg-gradient-to-r from-amber-500/30 via-amber-400/20 to-transparent rounded-full"
