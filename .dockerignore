@@ -25,9 +25,11 @@ docker-compose*.yml
 # OS
 .DS_Store
 Thumbs.db
-# Docs
+# Docs (keep README.md for hatchling metadata validation)
 *.md
 !CLAUDE.md
+!README.md
+!**/README.md
 # Python
 *.egg-info
 .venv

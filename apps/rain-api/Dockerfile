@@ -17,26 +17,20 @@ ADD https://astral.sh/uv/install.sh /tmp/uv-install.sh
 RUN sh /tmp/uv-install.sh && rm /tmp/uv-install.sh
 ENV PATH="/root/.local/bin:$PATH"
 
-# Copy workspace packages (editable deps need the monorepo layout)
-COPY apps/rain-api/pyproject.toml /app/apps/rain-api/
-COPY packages/db/pyproject.toml /app/packages/db/
-COPY packages/rain_brain/pyproject.toml /app/packages/rain_brain/
-COPY packages/brain_mcp/pyproject.toml /app/packages/brain_mcp/
+# Copy workspace package sources (editable deps need real source on disk
+# for hatchling metadata validation during `uv sync`)
 COPY pyproject.toml uv.lock /app/
-
-# Copy package source for editable installs
 COPY packages/db/ /app/packages/db/
 COPY packages/rain_brain/ /app/packages/rain_brain/
 COPY packages/brain_mcp/ /app/packages/brain_mcp/
 
-# Install deps from the rain-api context
-WORKDIR /app/apps/rain-api
-RUN uv sync --no-dev -v
+# Copy rain-api source (also needed before sync for editable install)
+COPY apps/rain-api/ /app/apps/rain-api/
 
-# Copy application source
-COPY apps/rain-api/src/ /app/apps/rain-api/src/
-
+# Install all deps + workspace editable installs
 WORKDIR /app/apps/rain-api
+RUN uv sync --frozen --no-dev
+
 EXPOSE 8000
 
 CMD ["uv", "run", "uvicorn", "rain_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
