@@ -36,9 +36,6 @@ RUN uv sync --frozen --no-dev
 # Copy application source
 COPY apps/rain-api/src/ /app/apps/rain-api/src/
 
-# Copy .env (values overrideable at runtime)
-COPY .env /app/.env 2>/dev/null || true
-
 WORKDIR /app/apps/rain-api
 EXPOSE 8000
 
