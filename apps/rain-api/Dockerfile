@@ -18,11 +18,11 @@ RUN sh /tmp/uv-install.sh && rm /tmp/uv-install.sh
 ENV PATH="/root/.local/bin:$PATH"
 
 # Copy workspace packages (editable deps need the monorepo layout)
-COPY apps/rain-api/pyproject.toml apps/rain-api/uv.lock* /app/apps/rain-api/
+COPY apps/rain-api/pyproject.toml /app/apps/rain-api/
 COPY packages/db/pyproject.toml /app/packages/db/
 COPY packages/rain_brain/pyproject.toml /app/packages/rain_brain/
 COPY packages/brain_mcp/pyproject.toml /app/packages/brain_mcp/
-COPY pyproject.toml uv.lock* /app/
+COPY pyproject.toml uv.lock /app/
 
 # Copy package source for editable installs
 COPY packages/db/ /app/packages/db/
