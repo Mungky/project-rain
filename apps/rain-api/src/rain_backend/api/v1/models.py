@@ -31,13 +31,19 @@ DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 async def _build_fresh_provider(name: str, cfg: dict):
-    """Build a provider instance from user-stored config. Returns None if unusable."""
+    """Build a provider instance from user-stored config, falling back to env
+    settings when DB config is missing/default. Returns None if unusable."""
     try:
         if name == "ollama":
-            return OllamaProvider(
-                base_url=cfg.get("base_url", "http://localhost:11434"),
-                api_key=(cfg.get("key") or "").strip() or None,
-            )
+            from rain_brain.config import brain_settings
+            base_url = cfg.get("base_url") or "http://localhost:11434"
+            # Fall back to env when UI hasn't customized
+            if base_url == "http://localhost:11434" and brain_settings.ollama_base_url != base_url:
+                base_url = brain_settings.ollama_base_url
+            api_key = (cfg.get("key") or "").strip() or None
+            if api_key is None:
+                api_key = brain_settings.ollama_api_key
+            return OllamaProvider(base_url=base_url, api_key=api_key)
         key = cfg.get("key", "").strip()
         if not key:
             return None
