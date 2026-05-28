@@ -180,6 +180,10 @@ services:
       SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:-}
       ENABLE_PYTHON_EXECUTOR: ${ENABLE_PYTHON_EXECUTOR:-false}
       ENABLE_SKILL_INSTALL: ${ENABLE_SKILL_INSTALL:-false}
+      # Skill backends — point at the sibling containers on the Coolify
+      # internal network. web-search-searxng handler defaults to localhost,
+      # which inside rain-api means the API hits itself.
+      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
     volumes:
       - sandboxes:/app/sandboxes
     expose:
