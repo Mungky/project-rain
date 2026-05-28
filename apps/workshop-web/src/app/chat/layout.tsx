@@ -38,7 +38,7 @@ export default function ChatLayout({
   }, [pathname, closeMobileSidebar]);
 
   return (
-    <div className="relative min-h-screen bg-black overflow-hidden flex font-sans text-white">
+    <div className="relative min-h-screen bg-ink-950 overflow-hidden flex font-sans text-ink-100">
       <AnimatePresence>
         {showRain && (
           <motion.div
@@ -54,7 +54,7 @@ export default function ChatLayout({
       </AnimatePresence>
 
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 z-40 flex items-center justify-between px-3 py-2 bg-black/70 backdrop-blur-xl border-b border-white/5">
+      <div className="md:hidden fixed top-0 inset-x-0 z-40 flex items-center justify-between px-3 py-2 bg-ink-950/85 backdrop-blur-xl border-b border-white/5">
         <button
           onClick={toggleMobileSidebar}
           className="p-2 rounded-xl text-white/70 hover:bg-white/10 transition-colors"

@@ -15,7 +15,10 @@
 }
 
 @theme {
-  --color-ink-50: #ffffff;
+  /* Soften pure-white / pure-black extremes to reduce eyestrain. The dark
+     "950" is a near-black charcoal rather than #000; the "50" light is a
+     warm off-white rather than pure #fff. Mid greys unchanged. */
+  --color-ink-50: #fafaf9;
   --color-ink-100: #f2f2f2;
   --color-ink-200: #e5e5e5;
   --color-ink-300: #d4d4d4;
@@ -24,11 +27,11 @@
   --color-ink-600: #525252;
   --color-ink-700: #404040;
   --color-ink-800: #262626;
-  --color-ink-900: #171717;
-  --color-ink-950: #000000;
+  --color-ink-900: #1a1a1a;
+  --color-ink-950: #0e0e10;
   --color-storm-400: #a3a3a3;
-  --color-storm-500: #000000;
-  --color-storm-600: #171717;
+  --color-storm-500: #0e0e10;
+  --color-storm-600: #1a1a1a;
   --color-storm-700: #262626;
   --color-rain-300: #d4d4d4;
   --color-rain-400: #737373;
@@ -62,7 +65,8 @@ body {
 .prose-rain {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.65;
-  color: #e5e5e5;
+  /* Slightly warmer than pure #fff, easier to read for long sessions. */
+  color: #e8e6e3;
 }
 
 .prose-rain h1 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 1rem; letter-spacing: -0.02em; }

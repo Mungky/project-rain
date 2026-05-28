@@ -240,16 +240,21 @@ export function Composer({
   return (
     <div className={cn(
       "w-full transition-all duration-700 relative",
-      isCentered ? "max-w-2xl mx-auto" : "max-w-3xl mx-auto mb-2 px-4"
+      // Mobile: keep some breathing room at the screen edges so the pill
+      // doesn't bleed off-side and look like an oval.
+      isCentered ? "max-w-2xl mx-auto px-4 md:px-0" : "max-w-3xl mx-auto mb-2 px-5 md:px-4"
     )}>
-      {/* 
-          IMPORTANT: Removed overflow-hidden from this container 
+      {/*
+          IMPORTANT: Removed overflow-hidden from this container
           to allow dropdowns to pop out.
       */}
       <div className={cn(
-        "relative flex flex-col rounded-[2.5rem] border transition-all duration-300 shadow-2xl",
-        "bg-black/80 border-white/10 backdrop-blur-3xl",
-        !isCentered && "scale-95 origin-bottom"
+        "relative flex flex-col border transition-all duration-300 shadow-2xl",
+        // Less aggressive radius on small screens (was uniformly 40px — read
+        // as an oval at narrow widths). On md+ keep the original pill look.
+        "rounded-3xl md:rounded-[2.5rem]",
+        "bg-ink-950/80 border-white/10 backdrop-blur-3xl",
+        !isCentered && "md:scale-95 origin-bottom"
       )}>
         <input
           ref={fileInputRef}
