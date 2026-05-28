@@ -51,10 +51,14 @@ function MessageBubbleInner({
     >
       <div
         className={cn(
-          "max-w-[85%] rounded-[2rem] px-6 py-4 border group relative transition-all duration-500",
+          // Bubble shape:
+          //  - user: rounded box, max 90% on mobile / 85% desktop, tighter
+          //    padding on phones so text uses more of the line.
+          //  - assistant: borderless, just text/markdown.
+          "group relative transition-all duration-500 border",
           isUser
-            ? "bg-white/[0.07] text-white/90 border-white/10"
-            : "text-white/90 border-transparent",
+            ? "max-w-[92%] md:max-w-[85%] rounded-2xl md:rounded-[2rem] px-4 py-2.5 md:px-6 md:py-4 bg-white/[0.06] text-white/90 border-white/10"
+            : "max-w-[96%] md:max-w-[85%] rounded-2xl md:rounded-[2rem] px-2 py-2 md:px-6 md:py-4 text-white/90 border-transparent",
         )}
       >
         {!isUser && (message.reasoning_content || (message.react_steps && message.react_steps.length > 0) || (message.tool_events && message.tool_events.length > 0) || message.streaming) && (

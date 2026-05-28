@@ -104,7 +104,7 @@ export function MessageList({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="absolute inset-0 overflow-y-auto no-scrollbar px-4 md:px-8 py-10"
+        className="absolute inset-0 overflow-y-auto no-scrollbar px-2 md:px-8 pt-6 md:pt-10 pb-32 md:pb-10"
         aria-live="polite"
       >
         <div className="max-w-4xl mx-auto space-y-2">

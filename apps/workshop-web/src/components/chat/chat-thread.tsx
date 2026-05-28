@@ -216,12 +216,19 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
               onRetry={handleRetry}
               onContinue={handleContinue}
             />
-            <div className="p-6">
-              <Composer
-                conversationId={conversationId}
-                isCentered={false}
-                forcedPersona={data?.persona}
-              />
+            {/* Composer: floats over the bottom of the message viewport on
+                mobile (like Gemini) so the reading area is uninterrupted.
+                On md+ it lives in normal flow with comfortable padding. */}
+            <div className="md:relative md:p-6">
+              {/* Fade scrim so messages don't bleed into the pill on phones. */}
+              <div className="md:hidden absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-ink-950 via-ink-950/90 to-transparent pointer-events-none" />
+              <div className="absolute md:static bottom-0 inset-x-0 px-2 pb-2 z-10 md:p-0">
+                <Composer
+                  conversationId={conversationId}
+                  isCentered={false}
+                  forcedPersona={data?.persona}
+                />
+              </div>
             </div>
           </>
         )}

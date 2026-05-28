@@ -240,9 +240,10 @@ export function Composer({
   return (
     <div className={cn(
       "w-full transition-all duration-700 relative",
-      // Mobile: keep some breathing room at the screen edges so the pill
-      // doesn't bleed off-side and look like an oval.
-      isCentered ? "max-w-2xl mx-auto px-4 md:px-0" : "max-w-3xl mx-auto mb-2 px-5 md:px-4"
+      // Mobile: thin side breathing room since chat-thread already inset
+      // the floating composer by 2px. Desktop keeps the original max-w pill
+      // with comfortable padding.
+      isCentered ? "max-w-2xl mx-auto px-4 md:px-0" : "max-w-3xl mx-auto md:mb-2 px-0 md:px-4"
     )}>
       {/*
           IMPORTANT: Removed overflow-hidden from this container
@@ -311,9 +312,9 @@ export function Composer({
           placeholder="Message Rain..."
           className={cn(
             "w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white placeholder:text-white/20 resize-none",
-            isCentered 
-              ? "px-8 pt-8 pb-2 min-h-[100px] text-lg font-light" 
-              : "px-6 pt-5 pb-1 min-h-[60px] text-base font-normal",
+            isCentered
+              ? "px-6 pt-6 pb-2 md:px-8 md:pt-8 md:min-h-[100px] min-h-[80px] text-base md:text-lg font-light"
+              : "px-4 pt-3 pb-1 md:px-6 md:pt-5 min-h-[48px] md:min-h-[60px] text-sm md:text-base font-normal",
             "max-h-[30vh] leading-relaxed"
           )}
           rows={1}
@@ -329,7 +330,9 @@ export function Composer({
 
         <div className={cn(
           "flex items-center justify-between transition-all",
-          isCentered ? "px-6 pb-6" : "px-4 pb-4"
+          isCentered
+            ? "px-4 pb-4 md:px-6 md:pb-6"
+            : "px-2.5 pb-2.5 md:px-4 md:pb-4"
         )}>
           <div className="flex items-center gap-2">
             {/* Attachment Button (+) */}

@@ -12,7 +12,8 @@ export function HealthBadge() {
   return (
     <div
       className={cn(
-        "fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full",
+        // Desktop only: collides with the floating composer on phones.
+        "hidden md:flex fixed bottom-4 right-4 z-50 items-center gap-2 px-3 py-1.5 rounded-full",
         "border backdrop-blur-md text-xs font-medium",
         "bg-ink-50/60 dark:bg-ink-900/60 border-ink-200/50 dark:border-ink-700/50",
       )}
