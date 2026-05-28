@@ -129,6 +129,27 @@ class ContextService:
 
     # ── Session extraction ────────────────────────────────────────────────────
 
+    @staticmethod
+    def _normalize_title(title: str) -> str:
+        """Normalise a title for dedup comparison.
+
+        Collapses things like 'Rayleigh Scattering Ex...' vs 'Rayleigh
+        Scattering' so they hash to the same key. Strips trailing
+        ellipsis/punctuation, common LLM suffix scraps ('ex', 'example'),
+        non-alphanumerics, and lowercases.
+        """
+        import re
+        s = (title or "").strip().lower()
+        # Drop trailing ellipsis / dots / commas
+        s = re.sub(r"[.\s]*…[.\s]*$", "", s)
+        s = re.sub(r"\.{2,}\s*$", "", s)
+        # Drop trailing scrap words the LLM sometimes leaves dangling
+        s = re.sub(r"\s+(ex|example|explanation|expl)\.?\s*$", "", s)
+        # Collapse non-alphanumerics → single space, then squeeze whitespace
+        s = re.sub(r"[^a-z0-9]+", " ", s).strip()
+        s = re.sub(r"\s+", " ", s)
+        return s
+
     async def extract_from_session(
         self,
         conversation_id: UUID,
@@ -138,24 +159,23 @@ class ContextService:
     ) -> list[ContextEntry]:
         """Batch-create entries extracted from a conversation.
 
-        Deduplicates against existing rows by case-insensitive title match
-        for the active user, so re-asking similar questions doesn't pile up
-        identical "Rayleigh Scattering" fragments in the side panel.
+        Deduplicates against existing rows by *normalised* title — strips
+        ellipsis/suffix scraps so 'Rayleigh Scattering' and 'Rayleigh
+        Scattering Ex...' collapse to the same key.
         """
-        # Snapshot existing titles once, then guard against intra-batch dupes too.
         existing_titles_q = select(ContextEntry.title).where(
             ContextEntry.user_id == DEFAULT_USER_ID,
             ContextEntry.is_active.is_(True),
         )
         existing_rows = await self.db.execute(existing_titles_q)
-        seen: set[str] = {(t or "").strip().lower() for (t,) in existing_rows.all()}
+        seen: set[str] = {self._normalize_title(t or "") for (t,) in existing_rows.all() if t}
 
         created = []
         for e in entries:
             title = (e.get("title") or "").strip()
-            key = title.lower()
-            if not title or key in seen:
-                logger.info("skip duplicate context fragment: %r", title)
+            key = self._normalize_title(title)
+            if not key or key in seen:
+                logger.info("skip duplicate context fragment: %r (norm=%r)", title, key)
                 continue
             seen.add(key)
             entry = await self.create_entry(

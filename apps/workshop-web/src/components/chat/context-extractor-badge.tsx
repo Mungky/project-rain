@@ -21,6 +21,10 @@ const colors = {
 
 export function ContextExtractorBadge() {
   const status = useContextExtractorStore((s) => s.status);
+  // Hide entirely when idle — "STANDBY" without context confused users into
+  // thinking it was a persona/connection state. Re-appears when actually
+  // extracting/synced/errored.
+  if (status === "idle") return null;
 
   return (
     <div className="flex flex-col items-center gap-0.5">

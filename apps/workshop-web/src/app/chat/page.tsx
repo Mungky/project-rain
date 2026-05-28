@@ -8,20 +8,21 @@ import { motion } from "framer-motion";
 import { useUIStore } from "@/stores/ui-store";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Clock, MessageSquare, Database, Activity, ArrowRight, Plus } from "lucide-react";
+import { Clock, MessageSquare, Database, ArrowRight, Plus } from "lucide-react";
 
 export default function ChatPage() {
   const { data: conversations } = useConversations();
   const { data: health } = useHealth();
   const { data: docs } = useDocuments();
   const setShowRain = useUIStore((s) => s.setShowRain);
-  const username = "Operator";
+  // First-name greeting — friendlier than the sci-fi "Operator".
+  const greeting = "Fikri";
 
   useEffect(() => {
     setShowRain(true);
   }, [setShowRain]);
 
-  const recentChats = conversations?.slice(0, 3) || [];
+  const recentChats = conversations?.slice(0, 6) || [];
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
 
@@ -35,149 +36,139 @@ export default function ChatPage() {
     return () => clearInterval(id);
   }, []);
 
+  const docCount = docs?.documents.length ?? 0;
+  const systemOk = health?.status === "ok";
+
   return (
-    <div className="flex-1 flex flex-col p-8 md:p-12 overflow-y-auto relative z-10 custom-scrollbar">
-      {/* Welcome Header */}
-      <header className="mb-12 space-y-2">
-        <motion.div 
+    <div className="flex-1 flex flex-col p-6 md:p-12 overflow-y-auto relative z-10 custom-scrollbar">
+      {/* Welcome Header — tighter than before. Time + status pill share one row. */}
+      <header className="mb-10 md:mb-12 space-y-3">
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 text-white/40 mb-4"
+          className="flex items-center gap-3 text-white/40"
         >
-          <Clock size={16} />
-          <span className="text-xs font-mono uppercase tracking-[0.2em]">{time} • {date}</span>
+          <Clock size={14} />
+          <span className="text-[11px] font-mono uppercase tracking-[0.2em]">
+            {time} • {date}
+          </span>
+          <span className="opacity-30">·</span>
+          <span
+            className={
+              "text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 " +
+              (systemOk ? "text-emerald-400" : "text-rose-400")
+            }
+          >
+            <span
+              className={
+                "w-1.5 h-1.5 rounded-full " +
+                (systemOk ? "bg-emerald-400 animate-pulse" : "bg-rose-400")
+              }
+            />
+            {systemOk ? "All systems operational" : "Degraded"}
+          </span>
         </motion.div>
-        <motion.h1 
+        <motion.h1
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-4xl md:text-5xl font-bold tracking-tighter text-white"
+          className="text-3xl md:text-4xl font-bold tracking-tight text-ink-100"
         >
-          Welcome back, <span className="text-white/60">{username}</span>
+          Welcome back, <span className="text-white/55">{greeting}</span>
         </motion.h1>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-        {/* System Pulse Card */}
+      {/* Primary CTA strip — replaces the three sparse cards. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-10">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <GlassPanel className="p-6 h-full border-white/10 bg-white/5 backdrop-blur-3xl group hover:border-white/20 transition-all">
-            <div className="flex items-center justify-between mb-6">
-              <div className="p-2 rounded-xl bg-white/5 text-white/60">
-                <Activity size={20} />
-              </div>
-              {health?.status === "ok" ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Operational
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] font-bold text-rose-400 uppercase tracking-widest">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                  Degraded
-                </div>
-              )}
-            </div>
-            <h3 className="text-sm font-bold text-white mb-2 tracking-wide">System Pulse</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-white/30 uppercase">Neural Engine</span>
-                <span className={health?.ollama ? "text-emerald-500" : "text-rose-500"}>{health?.ollama ? "READY" : "OFFLINE"}</span>
-              </div>
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-white/30 uppercase">Memory Core</span>
-                <span className={health?.postgres ? "text-emerald-500" : "text-rose-500"}>{health?.postgres ? "SYNCED" : "OFFLINE"}</span>
-              </div>
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-white/30 uppercase">Cache</span>
-                <span className={health?.redis ? "text-emerald-500" : "text-rose-500"}>{health?.redis ? "READY" : "OFFLINE"}</span>
-              </div>
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-white/30 uppercase">Storage</span>
-                <span className={health?.minio ? "text-emerald-500" : "text-rose-500"}>{health?.minio ? "READY" : "OFFLINE"}</span>
-              </div>
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-white/30 uppercase">Vector DB</span>
-                <span className={health?.qdrant ? "text-emerald-500" : "text-rose-500"}>{health?.qdrant ? "READY" : "OFFLINE"}</span>
-              </div>
-            </div>
-          </GlassPanel>
-        </motion.div>
-
-        {/* Neural Archive Summary */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <GlassPanel className="p-6 h-full border-white/10 bg-white/5 backdrop-blur-3xl group hover:border-white/20 transition-all">
-             <div className="flex items-center justify-between mb-6">
-              <div className="p-2 rounded-xl bg-white/5 text-white/60">
-                <Database size={20} />
-              </div>
-              <Link href="/chat/documents" className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1">
-                View All <ArrowRight size={10} />
-              </Link>
-            </div>
-            <h3 className="text-sm font-bold text-white mb-2 tracking-wide">Neural Archive</h3>
-            <p className="text-xs text-white/40 leading-relaxed">
-              Currently indexing <span className="text-white font-mono">{docs?.documents.length || 0}</span> knowledge fragments across the local cluster.
-            </p>
-          </GlassPanel>
-        </motion.div>
-
-        {/* Quick Start Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
         >
           <Link href="/chat" className="block h-full group">
-            <GlassPanel className="p-6 h-full border-white/20 bg-white text-black hover:bg-white/90 transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)]">
-               <div className="flex items-center justify-between mb-6">
-                <div className="p-2 rounded-xl bg-black text-white">
-                  <Plus size={20} />
+            <GlassPanel className="p-5 h-full border border-white/15 bg-white text-black hover:bg-white/95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.08)] flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-black text-white">
+                  <Plus size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold tracking-tight">Start new conversation</p>
+                  <p className="text-[11px] opacity-60">Pick a persona and begin.</p>
                 </div>
               </div>
-              <h3 className="text-sm font-black uppercase tracking-[0.1em] mb-2">Initialize Session</h3>
-              <p className="text-xs font-medium opacity-60">Spawn a new neural thread to begin processing.</p>
+              <ArrowRight size={16} className="opacity-50 group-hover:translate-x-0.5 transition-transform" />
+            </GlassPanel>
+          </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Link href="/chat/documents" className="block h-full group">
+            <GlassPanel className="p-5 h-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] hover:border-white/20 transition-all flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white/5 text-white/70">
+                  <Database size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold tracking-tight text-ink-100">Archive</p>
+                  <p className="text-[11px] text-white/40">
+                    {docCount === 0
+                      ? "No documents yet."
+                      : `${docCount} document${docCount === 1 ? "" : "s"} indexed.`}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight size={16} className="text-white/30 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all" />
             </GlassPanel>
           </Link>
         </motion.div>
       </div>
 
-      {/* Recent Nodes */}
-      <section className="space-y-6">
-        <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-white/20">Recent Neural Threads</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Recent Conversations — main content of the page. */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/25">
+            Recent conversations
+          </h2>
+          {recentChats.length > 0 && (
+            <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
+              {recentChats.length} of {conversations?.length ?? 0}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {recentChats.map((chat, i) => (
             <motion.div
               key={chat.id}
-              initial={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 + i * 0.1 }}
+              transition={{ delay: 0.25 + i * 0.04 }}
             >
-              <Link href={`/chat/${chat.id}`}>
-                <GlassPanel className="p-4 border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-all flex items-center gap-4">
-                  <div className="p-2.5 rounded-lg bg-white/5 text-white/30 group-hover:text-white transition-colors">
-                    <MessageSquare size={16} />
+              <Link href={`/chat/${chat.id}`} className="block group">
+                <GlassPanel className="p-4 border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/15 transition-all flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-white/5 text-white/35 group-hover:text-white/80 transition-colors shrink-0">
+                    <MessageSquare size={15} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white/70 truncate">{chat.title || "Untitled Session"}</p>
-                    <p className="text-[10px] font-mono text-white/20 uppercase tracking-tighter">{new Date(chat.updated_at).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium text-white/75 truncate">
+                      {chat.title || "Untitled"}
+                    </p>
+                    <p className="text-[10px] font-mono text-white/20 uppercase tracking-tighter mt-0.5">
+                      {new Date(chat.updated_at).toLocaleDateString()}
+                    </p>
                   </div>
-                  <ArrowRight size={14} className="text-white/10" />
+                  <ArrowRight size={13} className="text-white/10 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </GlassPanel>
               </Link>
             </motion.div>
           ))}
           {recentChats.length === 0 && (
-             <div className="col-span-full py-12 border-2 border-dashed border-white/5 rounded-2xl text-center">
-                <p className="text-sm text-white/20 font-mono italic">No active neural threads found.</p>
-             </div>
+            <div className="col-span-full py-10 border border-dashed border-white/5 rounded-2xl text-center">
+              <p className="text-sm text-white/25 font-mono italic">No conversations yet.</p>
+            </div>
           )}
         </div>
       </section>

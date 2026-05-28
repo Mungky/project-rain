@@ -2,10 +2,12 @@
 
 import { useEffect, useRef } from "react";
 
+// Softer density & opacity than the original — the rain is brand identity,
+// not a focus-stealer. Still recognisably "rain" but reads as ambient.
 const LAYERS = [
-  { count: 100, speedScale: 1.2, opacity: 0.3, width: 1.2, glow: true },
-  { count: 40, speedScale: 1.8, opacity: 0.15, width: 1.5, glow: false },
-  { count: 20, speedScale: 2.5, opacity: 0.08, width: 3, glow: false },
+  { count: 55, speedScale: 1.2, opacity: 0.16, width: 1.0, glow: true },
+  { count: 25, speedScale: 1.8, opacity: 0.10, width: 1.2, glow: false },
+  { count: 12, speedScale: 2.5, opacity: 0.05, width: 2.0, glow: false },
 ];
 
 const TARGET_FPS = 45;

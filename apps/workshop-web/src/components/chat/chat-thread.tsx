@@ -174,8 +174,8 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
                 </div>
               </div>
 
-              {/* Suggestion chips */}
-              <div className="flex flex-wrap justify-center gap-2">
+              {/* Suggestion chips — symmetric 2×2 (was 3+1 floating). */}
+              <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto w-full">
                 {[
                   "Explain quantum computing",
                   "Write a Python script",
@@ -188,7 +188,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
                       useComposerStore.getState().setDraft(suggestion);
                       useComposerStore.getState().requestFocus();
                     }}
-                    className="px-4 py-2 rounded-full text-xs text-white/50 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white/80 hover:border-white/20 transition-all duration-200"
+                    className="px-4 py-2 rounded-full text-xs text-white/50 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white/80 hover:border-white/20 transition-all duration-200 text-center"
                   >
                     {suggestion}
                   </button>

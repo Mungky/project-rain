@@ -57,7 +57,7 @@ export default function ChatLayout({
       <div className="md:hidden fixed top-0 inset-x-0 z-40 flex items-center justify-between px-3 py-2 bg-ink-950/85 backdrop-blur-xl border-b border-white/5">
         <button
           onClick={toggleMobileSidebar}
-          className="p-2 rounded-xl text-white/70 hover:bg-white/10 transition-colors"
+          className="p-2 rounded-xl text-white/70 hover:bg-white/10 active:bg-white/15 active:scale-95 transition-all"
           aria-label="Open conversations"
         >
           <Menu size={20} />

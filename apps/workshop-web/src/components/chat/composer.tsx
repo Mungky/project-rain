@@ -336,14 +336,15 @@ export function Composer({
             <button
               onClick={() => fileInputRef.current?.click()}
               className={cn(
-                "p-3 rounded-full transition-all border",
+                "p-2.5 md:p-3 rounded-full transition-all border",
                 attachedFiles.length > 0
                   ? "text-white bg-white/10 border-white/20"
                   : "text-white/40 hover:text-white hover:bg-white/10 border-transparent hover:border-white/10"
               )}
               title="Attach file as context"
             >
-              <Plus size={24} strokeWidth={1.5} />
+              <Plus size={20} strokeWidth={1.5} className="md:hidden" />
+              <Plus size={24} strokeWidth={1.5} className="hidden md:block" />
             </button>
             
           </div>
@@ -361,23 +362,25 @@ export function Composer({
             {isStreaming ? (
               <button
                 onClick={() => abortController?.abort()}
-                className="p-4 rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.4)]"
+                className="p-3 md:p-4 rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.4)]"
                 title="Stop Generation"
               >
-                <Square size={20} fill="currentColor" />
+                <Square size={16} fill="currentColor" className="md:hidden" />
+                <Square size={20} fill="currentColor" className="hidden md:block" />
               </button>
             ) : (
               <button
                 onClick={send}
                 disabled={!draft.trim() && attachedFiles.length === 0}
                 className={cn(
-                  "p-4 rounded-full transition-all",
+                  "p-3 md:p-4 rounded-full transition-all",
                   (draft.trim() || attachedFiles.length > 0)
                     ? "bg-white text-black hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.4)]"
                     : "text-white/5 border border-white/5"
                 )}
               >
-                <SendHorizonal size={22} strokeWidth={2} />
+                <SendHorizonal size={18} strokeWidth={2} className="md:hidden" />
+                <SendHorizonal size={22} strokeWidth={2} className="hidden md:block" />
               </button>
             )}
           </div>
