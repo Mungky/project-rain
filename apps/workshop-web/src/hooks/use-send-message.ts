@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sseStream } from "@/lib/sse";
-import { apiUrl } from "@/lib/api-client";
+import { apiUrl, apiAuthHeaders } from "@/lib/api-client";
 import { conversationKeys } from "@/hooks/use-conversations";
 import { useContextStore } from "@/stores/context-store";
 import { useContextExtractorStore } from "@/stores/context-extractor-store";
@@ -208,9 +208,14 @@ export function useSendMessage() {
             try {
               const flagKey = `rain:auto-titled:${conversationId}`;
               if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(flagKey)) {
-                sessionStorage.setItem(flagKey, "1");
-                fetch(apiUrl(`/v1/conversations/${conversationId}/auto-title`), { method: "POST" })
-                  .then(() => {
+                fetch(apiUrl(`/v1/conversations/${conversationId}/auto-title`), {
+                  method: "POST",
+                  headers: apiAuthHeaders(),
+                  credentials: "include",
+                })
+                  .then((res) => {
+                    if (!res.ok) throw new Error(`auto-title ${res.status}`);
+                    sessionStorage.setItem(flagKey, "1");
                     queryClient.invalidateQueries({ queryKey: qk });
                     queryClient.invalidateQueries({ queryKey: conversationKeys.list() });
                   })

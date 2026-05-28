@@ -42,6 +42,9 @@ class BrainSettings(BaseSettings):
     # Feature toggles
     self_correction_enabled: bool = False
 
+    # Skill safety — keep python-executor disabled until you sandbox it.
+    enable_python_executor: bool = False
+
     # Observability — Langfuse
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None

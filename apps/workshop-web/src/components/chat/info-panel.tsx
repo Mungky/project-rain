@@ -13,7 +13,7 @@ import {
 import { useUserPreferences, useUpdateUserPreferences } from "@/hooks/use-user-preferences";
 import type { ContextEntryResponse } from "@/lib/api-types";
 import { useShallow } from "zustand/react/shallow";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Brain,
   Database,
@@ -390,13 +390,15 @@ function BaselinePanel() {
   const [ctx, setCtx] = useState("");
   const [dirty, setDirty] = useState(false);
 
-  // Initialise once data loads
-  useState(() => {
-    if (prefs) {
+  // Hydrate textarea once preferences load (the previous `useState(() => ...)`
+  // pattern was a no-op — the initializer only runs on first render when prefs
+  // is still undefined, so the field stayed empty forever).
+  useEffect(() => {
+    if (prefs && !dirty) {
       setPrompt(prefs.custom_system_prompt ?? "");
       setCtx("");
     }
-  });
+  }, [prefs, dirty]);
 
   if (isLoading) {
     return <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="h-20 rounded-xl bg-white/[0.03] animate-pulse" />)}</div>;

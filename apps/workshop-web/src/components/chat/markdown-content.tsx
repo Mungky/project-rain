@@ -310,8 +310,10 @@ function SortableTable({ children }: { children: any }) {
   );
 }
 
-export function MarkdownContent({ content, className }: MarkdownContentProps) {
-  const processed = wrapAsciiDiagrams(content);
+import { memo as _memo, useMemo as _useMemo } from "react";
+
+function MarkdownContentInner({ content, className }: MarkdownContentProps) {
+  const processed = _useMemo(() => wrapAsciiDiagrams(content), [content]);
   return (
     <div className={cn("prose-rain max-w-none break-words", className)}>
       <ReactMarkdown
@@ -404,3 +406,10 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
     </div>
   );
 }
+
+// Memoize on content + className. Skips re-parse when parent renders for
+// unrelated reasons (e.g. sibling bubbles streaming).
+export const MarkdownContent = _memo(
+  MarkdownContentInner,
+  (prev, next) => prev.content === next.content && prev.className === next.className,
+);

@@ -31,7 +31,19 @@ async def install_skill(
     body: InstallSkillRequest,
     db: AsyncSession = Depends(get_db),
 ) -> Skill:
-    """Install a new skill from a Git URL."""
+    """Install a new skill from a Git URL.
+
+    Gated by ENABLE_SKILL_INSTALL env var: cloning + executing arbitrary
+    Python from a remote repo is effectively RCE in the API container.
+    Keep this disabled in prod until the runner is sandboxed.
+    """
+    from rain_backend.settings import settings as _s
+    if not _s.enable_skill_install:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "skill_install_disabled",
+                    "message": "Skill installation from remote git is disabled in this deployment."},
+        )
     service = SkillService(db)
     try:
         skill = await service.install_skill(body.git_url)

@@ -1,6 +1,7 @@
 """Model listing and management endpoints."""
 
 import logging
+import hashlib
 from uuid import UUID
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -30,29 +31,54 @@ class PingResponse(BaseModel):
 DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
+# Cache of (provider_name, config-hash) → instantiated provider. Without this
+# the chat / models / ping endpoints all created a fresh httpx.AsyncClient per
+# request and never closed it → file-descriptor leak under load.
+_PROVIDER_CACHE: dict[tuple[str, str], object] = {}
+
+
+def _cfg_signature(name: str, base_url: str | None, api_key: str | None) -> str:
+    """Stable opaque key for a provider config — never logs the raw key."""
+    raw = f"{name}|{base_url or ''}|{api_key or ''}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
 async def _build_fresh_provider(name: str, cfg: dict):
-    """Build a provider instance from user-stored config, falling back to env
-    settings when DB config is missing/default. Returns None if unusable."""
+    """Build (or fetch cached) provider instance from user-stored config,
+    falling back to env settings when DB config is missing/default."""
+    from rain_backend.core.secrets import decrypt_str
     try:
         if name == "ollama":
             from rain_brain.config import brain_settings
             base_url = cfg.get("base_url") or "http://localhost:11434"
-            # Fall back to env when UI hasn't customized
             if base_url == "http://localhost:11434" and brain_settings.ollama_base_url != base_url:
                 base_url = brain_settings.ollama_base_url
-            api_key = (cfg.get("key") or "").strip() or None
-            if api_key is None:
+            stored = (cfg.get("key") or "").strip()
+            api_key = decrypt_str(stored) if stored else None
+            if not api_key:
                 api_key = brain_settings.ollama_api_key
-            return OllamaProvider(base_url=base_url, api_key=api_key)
-        key = cfg.get("key", "").strip()
+            sig = (name, _cfg_signature(name, base_url, api_key))
+            if sig not in _PROVIDER_CACHE:
+                _PROVIDER_CACHE[sig] = OllamaProvider(base_url=base_url, api_key=api_key)
+            return _PROVIDER_CACHE[sig]
+
+        stored = (cfg.get("key") or "").strip()
+        key = decrypt_str(stored) if stored else ""
         if not key:
             return None
+        sig = (name, _cfg_signature(name, None, key))
+        if sig in _PROVIDER_CACHE:
+            return _PROVIDER_CACHE[sig]
         if name == "anthropic":
-            return AnthropicProvider(api_key=key)
-        if name == "openai":
-            return OpenAIProvider(api_key=key)
-        if name == "google":
-            return GoogleProvider(api_key=key)
+            inst = AnthropicProvider(api_key=key)
+        elif name == "openai":
+            inst = OpenAIProvider(api_key=key)
+        elif name == "google":
+            inst = GoogleProvider(api_key=key)
+        else:
+            return None
+        _PROVIDER_CACHE[sig] = inst
+        return inst
     except Exception as e:
         logger.warning("Failed to build provider %s: %s", name, e)
     return None

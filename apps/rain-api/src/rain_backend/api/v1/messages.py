@@ -90,13 +90,15 @@ async def post_message(
                 yield to_sse(chunk)
         except Exception as e:
             logger.exception(f"Streaming error for conversation {conversation_id}")
-            # Last-resort error chunk if everything fails
+            # Last-resort error chunk. Do NOT leak the exception string — it
+            # often contains DSNs, API key tails, or other internal detail.
+            # The full stack trace is logged above for ops.
             yield to_sse(
                 ChatChunk(
                     type="error",
                     data={
                         "code": "internal",
-                        "message": f"Internal server error: {str(e)}",
+                        "message": "Internal server error. Check server logs for details.",
                     },
                 )
             )

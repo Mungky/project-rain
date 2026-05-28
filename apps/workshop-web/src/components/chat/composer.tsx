@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useComposerStore } from "@/stores/composer-store";
@@ -36,6 +37,7 @@ export function Composer({
   forcedPersona,
   initialPersona,
 }: ComposerProps) {
+  const router = useRouter();
   const { draft, setDraft, shouldFocus, clearFocusRequest } = useComposerStore();
   const { selectedPersona, setSelectedPersona, activeModels } = usePersonaStore();
   const updateConv = useUpdateConversation(conversationId);
@@ -181,8 +183,8 @@ export function Composer({
   const commandContext: CommandContext = {
     clearDraft: () => setDraft(""),
     createNewConversation: () => {
-      // Will be handled by chat-thread via navigation
-      window.location.href = "/chat";
+      // SPA navigation — avoids full page reload that nukes optimistic state.
+      router.push("/chat");
     },
     navigateToChat: () => {},
     openSettings: () => {

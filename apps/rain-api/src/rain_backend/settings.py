@@ -65,16 +65,38 @@ class Settings(BaseSettings):
     llm_cache_ttl: int = 60 * 60  # 1 hour
     session_ttl: int = 24 * 60 * 60  # 24 hours
 
+    # API bearer token — when set, every /v1/* request must carry
+    # `Authorization: Bearer <token>`. Leave unset for local dev (no gate).
+    api_bearer_token: str | None = None
+
+    # Fernet key for symmetric encryption of stored secrets (provider API
+    # keys). Generate with:
+    #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    secrets_encryption_key: str | None = None
+
+    # Skill safety toggles. Both default False — only enable after sandboxing.
+    enable_python_executor: bool = False
+    enable_skill_install: bool = False
+
     @property
     def cors_allow_origins(self) -> list[str]:
         """Returns list of allowed CORS origins.
 
         In production, frontend_origin may be a comma-separated list to
         allow multiple origins (e.g., custom domain + Vercel preview URLs).
+
+        Hardening: refuse wildcards in production. Combined with
+        allow_credentials=True, a leaked '*' becomes a CSRF wildcard.
         """
         if self.environment == "development":
             return ["http://localhost:3000", "http://127.0.0.1:3000"]
-        return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
+        origins = [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
+        # Reject wildcards and bare empty strings — never trust the env.
+        safe = [o for o in origins if o != "*" and o.startswith(("http://", "https://"))]
+        if not safe:
+            # Empty list = no CORS allowed at all. Caller should set FRONTEND_ORIGIN.
+            return []
+        return safe
 
     @property
     def providers_enabled(self) -> dict[str, bool]:

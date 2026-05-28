@@ -141,12 +141,22 @@ async def _get_or_create_pref(db: AsyncSession) -> UserPreference:
     return pref
 
 
-def _merged_providers(stored: dict | None) -> dict[str, dict]:
-    """Merge stored provider config with defaults, ensuring all keys exist."""
+def _merged_providers(stored: dict | None, *, redact_keys: bool = True) -> dict[str, dict]:
+    """Merge stored provider config with defaults, ensuring all keys exist.
+
+    When `redact_keys=True` (the API-response path) the raw `key` is replaced
+    with a masked preview so the frontend UI shows the user *something*
+    indicating a key is saved without echoing the full secret.
+    """
+    from rain_backend.core.secrets import redact
     base = {k: dict(v) for k, v in _DEFAULT_PROVIDERS.items()}
     for name, cfg in (stored or {}).items():
         if name in base:
             base[name].update(cfg)
+    if redact_keys:
+        for name in base:
+            k = base[name].get("key", "")
+            base[name]["key"] = redact(k) if k else ""
     return base
 
 
@@ -158,7 +168,7 @@ async def get_preferences(db: AsyncSession = Depends(get_db)) -> PreferencesResp
     raw = pref.api_keys or {}
     hidden = list(raw.get("hidden_models", []))
     return PreferencesResponse(
-        providers=_merged_providers(raw),
+        providers=_merged_providers(raw, redact_keys=True),
         custom_system_prompt=pref.custom_system_prompt,
         hidden_models=hidden,
     )
@@ -171,16 +181,19 @@ async def update_preferences(
 ) -> PreferencesResponse:
     """Update provider configs or system prompt."""
     pref = await _get_or_create_pref(db)
-    providers = _merged_providers(pref.api_keys)
+    # Use unredacted view here — we're going to mutate + persist.
+    providers = _merged_providers(pref.api_keys, redact_keys=False)
 
     if body.providers:
+        from rain_backend.core.secrets import encrypt_str
         for name, update in body.providers.items():
             if name not in providers:
                 continue
             if update.enabled is not None:
                 providers[name]["enabled"] = update.enabled
             if update.key is not None:
-                providers[name]["key"] = update.key
+                # Encrypt at rest so a DB dump doesn't immediately leak API keys.
+                providers[name]["key"] = encrypt_str(update.key)
                 # auto-enable provider when a key is saved
                 if update.key.strip():
                     providers[name]["enabled"] = True
@@ -198,7 +211,7 @@ async def update_preferences(
 
     hidden = list(providers.get("hidden_models", []))
     return PreferencesResponse(
-        providers=_merged_providers(providers),
+        providers=_merged_providers(providers, redact_keys=True),
         custom_system_prompt=pref.custom_system_prompt,
         hidden_models=hidden,
     )

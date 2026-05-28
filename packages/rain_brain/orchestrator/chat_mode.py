@@ -939,6 +939,15 @@ async def run_chat(
     skills = await skill_service.get_enabled_skills()
     # Apply persona allowlist first
     skills = [s for s in skills if s.name in _allowed_tools]
+    # Production safety: drop unsandboxed code executors unless explicitly
+    # enabled. python-executor runs arbitrary Python in the API container; an
+    # attacker who can shape model output (prompt injection) gets full RCE.
+    try:
+        from rain_brain.config import brain_settings as _bs
+        if not getattr(_bs, "enable_python_executor", False):
+            skills = [s for s in skills if s.name != "python-executor"]
+    except Exception:
+        skills = [s for s in skills if s.name != "python-executor"]
     # Then apply conversation-level override if auto_skills is off
     if not conversation.auto_skills:
         enabled_identifiers = set(conversation.enabled_skills or [])

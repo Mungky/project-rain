@@ -57,12 +57,52 @@ class _TextExtractor(HTMLParser):
         return raw.strip()
 
 
+def _is_public_host(host: str) -> bool:
+    """Reject internal/link-local/loopback addresses to prevent SSRF.
+
+    Resolves the hostname and bails if any returned address is private. This
+    blocks the obvious attacks: hitting `http://postgres:5432`,
+    `http://169.254.169.254/` (AWS metadata), `http://localhost`, etc."""
+    import ipaddress
+    import socket
+    host = host.split(":")[0].strip().lower()
+    if not host or host in {"localhost"}:
+        return False
+    try:
+        addrs = {ai[4][0] for ai in socket.getaddrinfo(host, None)}
+    except Exception:
+        return False
+    if not addrs:
+        return False
+    for a in addrs:
+        try:
+            ip = ipaddress.ip_address(a)
+        except ValueError:
+            return False
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_unspecified
+            or ip.is_reserved
+        ):
+            return False
+    return True
+
+
 def handle(inputs: dict) -> dict:
     url = str(inputs.get("url", "")).strip()
     if not url:
         return {"error": "url is required"}
     if not url.startswith(("http://", "https://")):
         return {"error": "url must start with http:// or https://"}
+
+    # SSRF guard: refuse internal/link-local/loopback targets up front.
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if not parsed.hostname or not _is_public_host(parsed.hostname):
+        return {"error": "URL host is not a public address (SSRF blocked)", "url": url}
 
     max_chars = min(int(inputs.get("max_chars", 6000)), 20000)
 

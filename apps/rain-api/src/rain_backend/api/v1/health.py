@@ -2,7 +2,8 @@
 
 import asyncio
 from typing import Dict, Any
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response, status
+from sqlalchemy import text
 from db.schemas.dto_common import HealthResponse
 from rain_backend.api.deps import get_db_engine, get_redis, get_providers, get_minio, get_qdrant
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -23,12 +24,15 @@ async def check_ollama(providers: Dict) -> bool:
 
 
 async def check_postgres(engine: AsyncEngine | None) -> bool:
-    """Check if PostgreSQL is healthy."""
+    """Check if PostgreSQL is healthy — runs an actual SELECT so pool_pre_ping
+    + stale connection issues surface (a bare .connect() can succeed against a
+    dead pool entry)."""
     if engine is None:
         return False
     try:
-        async with engine.connect():
-            return True
+        async with engine.connect() as conn:
+            await asyncio.wait_for(conn.execute(text("SELECT 1")), timeout=2.0)
+        return True
     except Exception:
         return False
 
@@ -70,13 +74,16 @@ async def check_qdrant(qdrant_client: Any) -> bool:
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check(
+    response: Response,
     providers: Dict = Depends(get_providers),
     db_engine: AsyncEngine | None = Depends(get_db_engine),
     redis: Redis | None = Depends(get_redis),
     minio: Any = Depends(get_minio),
     qdrant: Any = Depends(get_qdrant),
 ) -> HealthResponse:
-    """Health check endpoint."""
+    """Health check. Returns 503 when a required dependency is down so the
+    container orchestrator (Coolify/Traefik) restarts the API instead of
+    routing traffic to a broken instance."""
     results = await asyncio.gather(
         check_ollama(providers),
         check_postgres(db_engine),
@@ -85,8 +92,7 @@ async def health_check(
         check_qdrant(qdrant),
         return_exceptions=True,
     )
-    
-    # Map results
+
     def to_bool(val):
         return val if isinstance(val, bool) else False
 
@@ -95,10 +101,13 @@ async def health_check(
     redis_ok = to_bool(results[2])
     minio_ok = to_bool(results[3])
     qdrant_ok = to_bool(results[4])
-    
-    # postgres + redis are required; ollama/minio/qdrant are optional Brain services
-    overall_status = "ok" if (postgres_ok and redis_ok) else "degraded"
-    
+
+    # postgres + redis are hard-required; downgrade to 503 so container is restarted.
+    healthy = postgres_ok and redis_ok
+    overall_status = "ok" if healthy else "degraded"
+    if not healthy:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
     return HealthResponse(
         status=overall_status,
         ollama=ollama_ok,

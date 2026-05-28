@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { messageAppear } from "@/styles/motion";
@@ -27,7 +28,7 @@ interface MessageBubbleProps {
   onContinue?: (messageId: string) => void;
 }
 
-export function MessageBubble({
+function MessageBubbleInner({
   message,
   onFeedback,
   onEdit,
@@ -238,3 +239,16 @@ export function MessageBubble({
   );
 }
 
+// Memoize: streaming chat re-renders the message list on every SSE token.
+// Without this, every prior bubble re-runs MarkdownContent + SyntaxHighlighter
+// on each token (visible jank in long threads).
+export const MessageBubble = memo(MessageBubbleInner, (prev, next) => (
+  prev.message.id === next.message.id &&
+  prev.message.content === next.message.content &&
+  prev.message.reasoning_content === next.message.reasoning_content &&
+  prev.message.streaming === next.message.streaming &&
+  prev.message.feedback === next.message.feedback &&
+  prev.message._cancelled === next.message._cancelled &&
+  prev.message.error === next.message.error &&
+  prev.copiedId === next.copiedId
+));

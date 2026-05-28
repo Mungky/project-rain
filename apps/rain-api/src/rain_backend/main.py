@@ -99,27 +99,32 @@ async def lifespan(app: FastAPI):
         logger.error(f"PostgreSQL engine creation failed: {e}")
         app.state.db_engine = None
 
-    if app.state.db_engine:
-        try:
-            async with app.state.db_engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-                await conn.commit()
-            logger.info("PostgreSQL connection verified")
+    # PostgreSQL is a hard requirement — fail fast if the verification probe
+    # blows up, so Coolify restarts the container instead of letting every
+    # chat query 500 silently.
+    if app.state.db_engine is None:
+        raise RuntimeError("PostgreSQL engine could not be created — aborting startup.")
+    try:
+        async with app.state.db_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            await conn.commit()
+        logger.info("PostgreSQL connection verified")
 
-            # Ensure default user exists (single-user mode)
-            from rain_backend.api.deps import DEFAULT_USER_ID
-            from db.schemas import User
-            from sqlalchemy.ext.asyncio import async_sessionmaker
-            session_factory = async_sessionmaker(app.state.db_engine, expire_on_commit=False)
-            async with session_factory() as session:
-                result = await session.execute(select(User).where(User.id == DEFAULT_USER_ID))
-                if not result.scalar_one_or_none():
-                    default_user = User(id=DEFAULT_USER_ID, username="rain")
-                    session.add(default_user)
-                    await session.commit()
-                    logger.info("Created default user 'rain'")
-        except Exception as e:
-            logger.warning(f"PostgreSQL initial connection test failed (will retry on use via pool_pre_ping): {e}")
+        # Ensure default user exists (single-user mode)
+        from rain_backend.api.deps import DEFAULT_USER_ID
+        from db.schemas import User
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+        session_factory = async_sessionmaker(app.state.db_engine, expire_on_commit=False)
+        async with session_factory() as session:
+            result = await session.execute(select(User).where(User.id == DEFAULT_USER_ID))
+            if not result.scalar_one_or_none():
+                default_user = User(id=DEFAULT_USER_ID, username="rain")
+                session.add(default_user)
+                await session.commit()
+                logger.info("Created default user 'rain'")
+    except Exception as e:
+        logger.error("PostgreSQL initial probe failed — refusing to start: %s", e)
+        raise
 
     # Initialize MinIO
     try:
@@ -205,10 +210,25 @@ async def lifespan(app: FastAPI):
             logger.error(f"Skills sync failure: {e}")
     
     yield
-    
+
     # Shutdown
     for provider in app.state.providers.values():
         await provider.close()
+    # Close cached per-user providers (httpx clients) built lazily by the
+    # /v1/models and /v1/messages flows. Without this the underlying TCP
+    # sockets linger until process exit.
+    try:
+        from rain_backend.api.v1.models import _PROVIDER_CACHE
+        for p in list(_PROVIDER_CACHE.values()):
+            try:
+                close = getattr(p, "close", None)
+                if close:
+                    await close()
+            except Exception:
+                pass
+        _PROVIDER_CACHE.clear()
+    except Exception:
+        pass
     if app.state.redis:
         await app.state.redis.aclose()
     if app.state.db_engine:
@@ -235,6 +255,37 @@ def create_app() -> FastAPI:
         response = await call_next(request)
         response.headers["X-Response-Time-ms"] = f"{(time.perf_counter() - start) * 1000:.1f}"
         return response
+
+    # Bearer-token gate. When API_BEARER_TOKEN is set, every /v1/* request
+    # (except the open health endpoint) must carry Authorization: Bearer <token>
+    # OR `x-api-key: <token>`. Leave the env unset for local dev to bypass.
+    expected_bearer = (settings.api_bearer_token or "").strip()
+    OPEN_PATHS = {"/v1/health", "/docs", "/openapi.json", "/redoc", "/"}
+
+    @app.middleware("http")
+    async def bearer_auth(request: Request, call_next):
+        if not expected_bearer:
+            return await call_next(request)
+        path = request.url.path
+        if path in OPEN_PATHS or request.method == "OPTIONS":
+            return await call_next(request)
+        # Accept either Authorization: Bearer X or x-api-key: X
+        auth = request.headers.get("authorization", "")
+        api_key_header = request.headers.get("x-api-key", "")
+        token = ""
+        if auth.lower().startswith("bearer "):
+            token = auth[7:].strip()
+        elif api_key_header:
+            token = api_key_header.strip()
+        # Constant-time compare on equal-length to mitigate trivial timing.
+        import hmac
+        if hmac.compare_digest(token, expected_bearer):
+            return await call_next(request)
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"code": "unauthorized", "message": "API token required."}},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     # Exception handlers
     @app.exception_handler(StarletteHTTPException)

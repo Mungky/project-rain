@@ -1,5 +1,7 @@
 import type { ChatChunk } from "./api-types";
 
+const API_BEARER_TOKEN = process.env.NEXT_PUBLIC_API_BEARER_TOKEN ?? "";
+
 export interface SSEStreamOptions {
   method?: string;
   body?: unknown;
@@ -10,12 +12,15 @@ export async function* sseStream(
   url: string,
   opts: SSEStreamOptions = {},
 ): AsyncGenerator<ChatChunk, void, void> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "text/event-stream",
+  };
+  if (API_BEARER_TOKEN) headers.Authorization = `Bearer ${API_BEARER_TOKEN}`;
+
   const response = await fetch(url, {
     method: opts.method ?? "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-    },
+    headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
     signal: opts.signal,
   });

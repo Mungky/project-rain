@@ -175,6 +175,11 @@ services:
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
+      # Security
+      API_BEARER_TOKEN: ${API_BEARER_TOKEN:-}
+      SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:-}
+      ENABLE_PYTHON_EXECUTOR: ${ENABLE_PYTHON_EXECUTOR:-false}
+      ENABLE_SKILL_INSTALL: ${ENABLE_SKILL_INSTALL:-false}
     volumes:
       - sandboxes:/app/sandboxes
     expose:
