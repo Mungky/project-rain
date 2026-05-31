@@ -36,6 +36,7 @@ class OllamaProvider:
         base_url: str | None = None,
         api_key: str | None = None,
         timeout: float = 300.0,
+        embed_base_url: str | None = None,
     ):
         url = base_url or brain_settings.ollama_base_url
         if not url.endswith("/"):
@@ -51,6 +52,23 @@ class OllamaProvider:
             timeout=self._timeout,
             headers=headers,
         )
+
+        # Embeddings: Ollama Cloud hosts NO embedding models, so embed calls must
+        # target a local/dedicated Ollama. Use a separate client when an embed
+        # endpoint is configured; otherwise reuse the chat client (local dev).
+        embed_url = embed_base_url or brain_settings.ollama_embed_base_url
+        if embed_url:
+            if not embed_url.endswith("/"):
+                embed_url += "/"
+        if embed_url and embed_url != self._base_url:
+            self._embed_base_url = embed_url
+            self._embed_client = httpx.AsyncClient(
+                base_url=embed_url,
+                timeout=self._timeout,
+            )
+        else:
+            self._embed_base_url = self._base_url
+            self._embed_client = self._client
 
     async def list_models(self) -> list[str]:
         """List available models from Ollama."""
@@ -313,7 +331,7 @@ class OllamaProvider:
         
         # Try new batch embed API first
         try:
-            response = await self._client.post(
+            response = await self._embed_client.post(
                 "api/embed",
                 json={
                     "model": brain_settings.ollama_embedding_model,
@@ -331,7 +349,7 @@ class OllamaProvider:
         embeddings = []
         for text in texts:
             try:
-                response = await self._client.post(
+                response = await self._embed_client.post(
                     "api/embeddings",
                     json={
                         "model": brain_settings.ollama_embedding_model,
@@ -360,5 +378,7 @@ class OllamaProvider:
             return False
 
     async def close(self) -> None:
-        """Close the HTTP client."""
+        """Close the HTTP client(s)."""
         await self._client.aclose()
+        if self._embed_client is not self._client:
+            await self._embed_client.aclose()

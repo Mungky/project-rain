@@ -16,6 +16,9 @@ class BrainSettings(BaseSettings):
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
+    # Embeddings run on a separate Ollama when set (Ollama Cloud hosts no
+    # embedding models). Falls back to ollama_base_url when empty.
+    ollama_embed_base_url: str | None = None
     ollama_api_key: str | None = None  # Required for Ollama Cloud (ollama.com)
     ollama_default_model: str = "glm-5.1:cloud"
     ollama_keep_alive_minutes: int = 5

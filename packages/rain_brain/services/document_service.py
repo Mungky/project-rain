@@ -124,37 +124,48 @@ class DocumentService:
             # 2. Chunk & Embed
             text = self._extract_text(file_data, filename, mime)
             chunks = self._chunk_text(text)
+            vectors_stored = 0
             if chunks:
                 logger.info(f"Embedding {len(chunks)} chunks using {ollama_provider.name}...")
                 embeddings = await ollama_provider.embed(chunks)
-                
+
                 from qdrant_client.models import PointStruct
                 points = [
                     PointStruct(
                         id=str(uuid5(DOC_NAMESPACE, f"{doc_id}:{i}")),
                         vector=embeddings[i],
                         payload={
-                            "user_id": str(DEFAULT_USER_ID), 
-                            "document_id": str(doc_id), 
-                            "text": chunks[i], 
+                            "user_id": str(DEFAULT_USER_ID),
+                            "document_id": str(doc_id),
+                            "text": chunks[i],
                             "source": filename
                         }
                     ) for i in range(len(chunks)) if i < len(embeddings) and embeddings[i]
                 ]
                 if points:
                     await qdrant_client.upsert(collection_name="documents", points=points)
-                    logger.info(f"Successfully upserted {len(points)} vectors to Qdrant")
+                    vectors_stored = len(points)
+                    logger.info(f"Successfully upserted {vectors_stored} vectors to Qdrant")
+                else:
+                    # Embeddings came back empty — almost always means the embedding
+                    # model isn't reachable (e.g. pointing at Ollama Cloud, which
+                    # has no embedding models). Fail loudly instead of reporting a
+                    # misleading "ready" doc that RAG can never retrieve.
+                    raise ValueError(
+                        "Embedding produced no vectors — check the embedding endpoint "
+                        "(OLLAMA_EMBED_BASE_URL) and that the embedding model is pulled."
+                    )
 
             # 3. Finalize
             document.status = DocumentStatus.ready
             await self.db.commit()
-            
+
             return DocumentUploadResponse(
-                id=doc_id, 
-                filename=filename, 
-                mime=mime, 
-                status="ready", 
-                chunk_count=len(chunks), 
+                id=doc_id,
+                filename=filename,
+                mime=mime,
+                status="ready",
+                chunk_count=vectors_stored,
                 created_at=datetime.now(UTC)
             )
 

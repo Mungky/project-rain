@@ -150,9 +150,12 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # LLM providers
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-https://ollama.com}
+      # Ollama Cloud hosts NO embedding models, so embeddings (RAG + memory)
+      # run on the local ollama-embed sidecar; chat stays on cloud.
+      OLLAMA_EMBED_BASE_URL: ${OLLAMA_EMBED_BASE_URL:-http://ollama-embed:11434}
       OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-kimi-k2.6:cloud}
-      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
-      OLLAMA_EXTRACTION_MODEL: ${OLLAMA_EXTRACTION_MODEL:-gemma4:31b-cloud}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text-v2-moe}
+      OLLAMA_EXTRACTION_MODEL: ${OLLAMA_EXTRACTION_MODEL:-glm-5.1:cloud}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
@@ -197,10 +200,38 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama-embed:
+        condition: service_started
     healthcheck:
       <<: *hc-defaults
       start_period: 30s
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+
+  # --- EMBEDDINGS (local) ---
+  # Ollama Cloud serves no embedding models, so RAG + memory embeddings run on
+  # this small local Ollama. Pulls the embedding model on first boot (persisted
+  # in the volume), then serves it on :11434 for rain-api (OLLAMA_EMBED_BASE_URL).
+  ollama-embed:
+    image: ollama/ollama:latest
+    restart: *restart
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        pid=$$!
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull nomic-embed-text-v2-moe || true
+        wait $$pid
+    volumes:
+      - ollama_embed_models:/root/.ollama
+    expose:
+      - "11434"
+    mem_limit: 1536m
+    mem_reservation: 512m
+    healthcheck:
+      <<: *hc-defaults
+      start_period: 180s
+      test: ["CMD-SHELL", "ollama list | grep -q nomic-embed-text || exit 1"]
 
   # --- SKILLS INFRA (optional — enable if web search needed) ---
 
@@ -227,5 +258,6 @@ volumes:
   postgres_data:
   qdrant_data:
   minio_data:
+  ollama_embed_models:
   sandboxes:
     driver: local
