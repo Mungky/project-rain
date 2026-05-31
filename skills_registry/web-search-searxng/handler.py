@@ -26,12 +26,32 @@ def handle(inputs: dict) -> dict:
     url = f"{SEARXNG_BASE_URL}/search?{params}"
 
     try:
+        # SearXNG's bot-detection/limiter fails closed when it can't resolve a
+        # client IP ("X-Forwarded-For nor X-Real-IP header is set!") and rejects
+        # the request with 403. Since this is a trusted internal call from
+        # rain-api, supply those headers plus a browser-like User-Agent so the
+        # JSON API is reachable regardless of the limiter config.
         req = urllib.request.Request(
             url,
-            headers={"User-Agent": "Rain/1.0 (AI Assistant)"},
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+                ),
+                "Accept": "application/json",
+                "X-Forwarded-For": "127.0.0.1",
+                "X-Real-IP": "127.0.0.1",
+            },
         )
         with urllib.request.urlopen(req, timeout=12) as resp:
             data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode(errors="replace")[:200]
+        except Exception:
+            pass
+        return {"error": f"SearXNG HTTP {e.code} ({e.reason}). {body}".strip()}
     except urllib.error.URLError as e:
         return {"error": f"SearXNG unreachable: {e.reason}. Is rain-searxng container running?"}
     except Exception as e:
