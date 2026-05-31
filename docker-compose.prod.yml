@@ -205,12 +205,16 @@ services:
   # --- SKILLS INFRA (optional — enable if web search needed) ---
 
   searxng:
-    image: searxng/searxng:latest
+    build:
+      context: ./searxng
+    image: rain-searxng:local
     restart: *restart
     environment:
       SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
-    volumes:
-      - ./searxng:/etc/searxng:rw
+      # Belt-and-suspenders: the default settings template substitutes these
+      # from env. Our baked settings.yml sets limiter:false explicitly too.
+      SEARXNG_LIMITER: "false"
+      SEARXNG_PUBLIC_INSTANCE: "false"
     expose:
       - "8080"
     mem_limit: 512m
