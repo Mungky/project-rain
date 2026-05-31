@@ -55,8 +55,11 @@ export function useCreateConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (persona: Persona = "drizzle") => {
-      return apiPost<ConversationCreatedResponse>("/v1/conversations", { persona });
+    mutationFn: (opts: { persona?: Persona; behavior_mode?: string } = {}) => {
+      return apiPost<ConversationCreatedResponse>("/v1/conversations", {
+        persona: opts.persona ?? "drizzle",
+        behavior_mode: opts.behavior_mode,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: conversationKeys.list() });

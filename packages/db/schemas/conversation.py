@@ -26,6 +26,11 @@ class Conversation(Base, UUIDPKMixin, TimestampMixin, SoftDeleteMixin):
         server_default="drizzle",
         comment="Active persona: drizzle (chat/tools), shower (quick-reply), or storm (orchestrator).",
     )
+    behavior_mode: Mapped[str | None] = mapped_column(
+        String(40),
+        nullable=True,
+        comment="Behavioral stance key (built-in: discussion/teacher/mentor/friend, or a custom mode key). Null/default = persona default.",
+    )
     auto_skills: Mapped[bool] = mapped_column(
         nullable=False,
         server_default="true",

@@ -114,16 +114,35 @@ class ProviderUpdate(BaseModel):
     base_url: str | None = None
 
 
+class CustomMode(BaseModel):
+    key: str
+    label: str
+    directive: str
+
+
 class PreferencesUpdate(BaseModel):
     providers: dict[str, ProviderUpdate] | None = None
     custom_system_prompt: str | None = None
     hidden_models: list[str] | None = None
+    custom_modes: list[CustomMode] | None = None
 
 
 class PreferencesResponse(BaseModel):
     providers: dict[str, dict[str, Any]]
     custom_system_prompt: str | None
     hidden_models: list[str] = []
+    custom_modes: list[CustomMode] = []
+
+
+class ModeOption(BaseModel):
+    key: str
+    label: str
+    subtitle: str = ""
+    builtin: bool = False
+
+
+class ModesResponse(BaseModel):
+    modes: list[ModeOption]
 
 
 async def _get_or_create_pref(db: AsyncSession) -> UserPreference:
@@ -171,6 +190,7 @@ async def get_preferences(db: AsyncSession = Depends(get_db)) -> PreferencesResp
         providers=_merged_providers(raw, redact_keys=True),
         custom_system_prompt=pref.custom_system_prompt,
         hidden_models=hidden,
+        custom_modes=list(pref.custom_modes or []),
     )
 
 
@@ -206,6 +226,14 @@ async def update_preferences(
     if body.hidden_models is not None:
         providers["hidden_models"] = body.hidden_models
 
+    if body.custom_modes is not None:
+        # Persist user-defined modes; built-in keys are reserved (they win on
+        # resolve anyway, so drop any custom entry that shadows a built-in).
+        from rain_brain.orchestrator.behavior_modes import BUILTIN_MODES
+        pref.custom_modes = [
+            m.model_dump() for m in body.custom_modes if m.key and m.key not in BUILTIN_MODES
+        ]
+
     pref.api_keys = providers
     await db.commit()
 
@@ -214,4 +242,18 @@ async def update_preferences(
         providers=_merged_providers(providers, redact_keys=True),
         custom_system_prompt=pref.custom_system_prompt,
         hidden_models=hidden,
+        custom_modes=list(pref.custom_modes or []),
     )
+
+
+@router.get("/modes", response_model=ModesResponse)
+async def list_modes(db: AsyncSession = Depends(get_db)) -> ModesResponse:
+    """List available behavior modes — built-in presets plus user custom modes."""
+    from rain_brain.orchestrator.behavior_modes import builtin_modes_public
+    pref = await _get_or_create_pref(db)
+    await db.commit()
+    modes = [ModeOption(**m) for m in builtin_modes_public()]
+    for m in (pref.custom_modes or []):
+        if isinstance(m, dict) and m.get("key") and m.get("label"):
+            modes.append(ModeOption(key=m["key"], label=m["label"], subtitle="Custom", builtin=False))
+    return ModesResponse(modes=modes)

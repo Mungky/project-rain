@@ -14,6 +14,66 @@ logger = logging.getLogger(__name__)
 SKILL_TIMEOUT_SECONDS = 60
 
 
+# Common tool-name aliases. Models (especially cloud Ollama: glm/kimi/gemma)
+# frequently emit underscored or shortened names that don't match the
+# hyphenated registry folder names. Without this, a near-miss like
+# "web_search" becomes a silent "skill not found" → the model fabricates an
+# answer. Map those aliases to the canonical registry skill names here.
+_TOOL_ALIASES: dict[str, str] = {
+    # web-search-searxng
+    "web_search": "web-search-searxng",
+    "websearch": "web-search-searxng",
+    "web-search": "web-search-searxng",
+    "search": "web-search-searxng",
+    "search_web": "web-search-searxng",
+    "google": "web-search-searxng",
+    "google_search": "web-search-searxng",
+    # python-executor
+    "python": "python-executor",
+    "python_exec": "python-executor",
+    "python_executor": "python-executor",
+    "run_python": "python-executor",
+    "code": "python-executor",
+    "code_executor": "python-executor",
+    "execute_python": "python-executor",
+    # web-reader
+    "web_reader": "web-reader",
+    "read_url": "web-reader",
+    "fetch_url": "web-reader",
+    "fetch": "web-reader",
+    "browse": "web-reader",
+    "open_url": "web-reader",
+    # document-search
+    "doc_search": "document-search",
+    "document_search": "document-search",
+    "knowledge_search": "document-search",
+    "search_documents": "document-search",
+    "search_knowledge": "document-search",
+}
+
+
+def normalize_tool_name(name: str) -> str:
+    """Map a model-provided tool name to a canonical registry skill name.
+
+    Resolves common aliases and underscore/hyphen variants so a near-miss
+    doesn't turn into a silent "skill not found". Returns the original name
+    (trimmed) if no alias applies. This is a pure function — it does not check
+    the registry; SkillExecutor confirms the folder exists afterward.
+    """
+    if not name:
+        return name
+    key = name.strip().lower()
+    if key in _TOOL_ALIASES:
+        return _TOOL_ALIASES[key]
+    swapped = key.replace("_", "-")
+    if swapped in _TOOL_ALIASES:
+        return _TOOL_ALIASES[swapped]
+    underscore = key.replace("-", "_")
+    if underscore in _TOOL_ALIASES:
+        return _TOOL_ALIASES[underscore]
+    return name.strip()
+
+
 class SkillExecutor:
     """Runtime for executing skill handlers."""
 
@@ -27,15 +87,51 @@ class SkillExecutor:
         if not self.registry_path.exists():
             self.registry_path.mkdir(parents=True, exist_ok=True)
 
+    def _resolve_skill_name(self, name: str) -> str:
+        """Resolve a model-provided tool name to an actual registry folder.
+
+        Order: exact match → alias/normalization → separator-insensitive
+        folder scan. Returns the original name if nothing matches (the caller
+        then surfaces a helpful "available tools" error).
+        """
+        if (self.registry_path / name).is_dir():
+            return name
+        norm = normalize_tool_name(name)
+        if norm != name and (self.registry_path / norm).is_dir():
+            return norm
+        target = name.strip().lower().replace("_", "-")
+        for p in self.registry_path.iterdir():
+            if p.is_dir() and p.name.lower().replace("_", "-") == target:
+                return p.name
+        return norm
+
+    def _available_skills(self) -> list[str]:
+        return sorted(
+            p.name
+            for p in self.registry_path.iterdir()
+            if p.is_dir() and not p.name.startswith("__")
+        )
+
     async def execute(self, skill_name: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a skill handler by name with a hard timeout."""
+        requested = skill_name
+        skill_name = self._resolve_skill_name(skill_name)
+        if skill_name != requested:
+            logger.info("Resolved tool name '%s' → '%s'", requested, skill_name)
+
         # Path traversal guard
         skill_dir = (self.registry_path / skill_name).resolve()
         if not str(skill_dir).startswith(str(self.registry_path)):
-            return {"error": f"Invalid skill name: {skill_name}"}
+            return {"error": f"Invalid skill name: {requested}"}
 
         if not skill_dir.exists():
-            return {"error": f"Skill '{skill_name}' not found in registry"}
+            available = self._available_skills()
+            return {
+                "error": (
+                    f"Skill '{requested}' not found in registry. "
+                    f"Available tools (use the EXACT name): {', '.join(available)}."
+                )
+            }
 
         # Try manifest-declared entry point first, then fall back to conventional names
         handler_path = self._resolve_handler(skill_dir)

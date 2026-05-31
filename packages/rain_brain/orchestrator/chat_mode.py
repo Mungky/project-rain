@@ -367,6 +367,7 @@ async def _run_shower(
     db: AsyncSession,
     user_id: UUID,
     current_date: str,
+    behavior_mode: str | None = None,
 ) -> AsyncIterator[ChatChunk]:
     """Shower persona: quick direct LLM call, no tools, no ReAct, no RAG.
 
@@ -411,6 +412,19 @@ async def _run_shower(
             system_instruction += f"\n\nWhat you know about the user:\n{formatted}"
     except Exception as e:
         logger.warning("_run_shower: failed to fetch user preferences: %s", e)
+        preference = None
+
+    # Behavior mode (same stance as the other personas)
+    try:
+        from rain_brain.orchestrator.behavior_modes import resolve_mode_directive
+        _mode_directive = resolve_mode_directive(
+            behavior_mode,
+            getattr(preference, "custom_modes", None) if preference else None,
+        )
+        if _mode_directive:
+            system_instruction += f"\n\n{_mode_directive}"
+    except Exception as e:
+        logger.warning("_run_shower: failed to apply behavior mode: %s", e)
 
     # Context Library: inject all active entries so Shower has full Brain awareness
     try:
@@ -589,8 +603,37 @@ async def run_chat(
     llm_user_message: str | list = user_message
 
     if attachments:
+        from rain_brain.services.file_extract import extract_text, is_extractable
+
         image_attachments = [a for a in attachments if a.get("mime_type", "text/plain").startswith("image/")]
         text_attachments  = [a for a in attachments if not a.get("mime_type", "text/plain").startswith("image/")]
+
+        ATTACH_CONTENT_MAX = 50_000
+
+        def _attachment_text_block(a: dict) -> str:
+            """Build a prompt-ready text block for one non-image attachment.
+
+            Binary documents (PDF/DOCX/XLSX/PPTX) arrive base64-encoded; extract
+            their text so the model sees real content, not gibberish. Plain-text
+            files are injected verbatim. If extraction fails, say so honestly
+            instead of dumping base64.
+            """
+            name = a.get("name", "attachment")
+            mime = a.get("mime_type", "text/plain")
+            raw = a.get("content", "")
+
+            if is_extractable(name, mime):
+                extracted = extract_text(name, mime, raw)
+                if extracted:
+                    trunc = "\n[...truncated]" if len(extracted) > ATTACH_CONTENT_MAX else ""
+                    return f"[Attached document: {name}]\n```\n{extracted[:ATTACH_CONTENT_MAX]}{trunc}\n```"
+                return (
+                    f"[Attached document: {name}] — the text could not be extracted "
+                    "(unsupported or unreadable format). Tell the user you cannot read its contents; do not guess."
+                )
+
+            trunc = "\n[...truncated]" if len(raw) > ATTACH_CONTENT_MAX else ""
+            return f"[Attached: {name}]\n```\n{raw[:ATTACH_CONTENT_MAX]}{trunc}\n```"
 
         if image_attachments:
             if "vision" not in model_caps:
@@ -602,14 +645,8 @@ async def run_chat(
 
             # Build OpenAI-format content blocks (all providers convert from this)
             content_blocks: list[dict] = []
-            ATTACH_CONTENT_MAX = 50_000
             if text_attachments:
-                text_block = "\n\n".join(
-                    f"[Attached: {a['name']}]\n```\n{a['content'][:ATTACH_CONTENT_MAX]}"
-                    + ("\n[...truncated]" if len(a["content"]) > ATTACH_CONTENT_MAX else "")
-                    + "\n```"
-                    for a in text_attachments
-                )
+                text_block = "\n\n".join(_attachment_text_block(a) for a in text_attachments)
                 content_blocks.append({"type": "text", "text": text_block})
             for a in image_attachments:
                 content_blocks.append({
@@ -620,14 +657,8 @@ async def run_chat(
                 content_blocks.append({"type": "text", "text": user_message.strip()})
             llm_user_message = content_blocks
         else:
-            # Text-only attachments — inject as code blocks (existing behaviour)
-            ATTACH_CONTENT_MAX = 50_000
-            blocks = "\n\n".join(
-                f"[Attached: {a['name']}]\n```\n{a['content'][:ATTACH_CONTENT_MAX]}"
-                + ("\n[...truncated]" if len(a["content"]) > ATTACH_CONTENT_MAX else "")
-                + "\n```"
-                for a in text_attachments
-            )
+            # Text-only / document attachments — inject extracted text as code blocks
+            blocks = "\n\n".join(_attachment_text_block(a) for a in text_attachments)
             llm_user_message = f"{blocks}\n\n{user_message}".strip() if user_message.strip() else blocks
 
     # Persist user message — store only the typed text, NOT the raw attachment content
@@ -691,6 +722,7 @@ async def run_chat(
             db=db,
             user_id=conversation.user_id,
             current_date=datetime.now().strftime("%A, %B %d, %Y"),
+            behavior_mode=getattr(conversation, "behavior_mode", None),
         ):
             yield chunk
         return
@@ -761,6 +793,19 @@ async def run_chat(
                 system_instruction += f"\n\nUser profile — adapt style, depth, and language accordingly:\n{formatted}"
     except Exception as e:
         logger.warning("Failed to fetch user preferences: %s", e)
+
+    # --- 1a. Behavior mode: a behavioral stance on top of the persona ---
+    # Injected directly into the system prompt (model-independent, no tool-calling).
+    try:
+        from rain_brain.orchestrator.behavior_modes import resolve_mode_directive
+        _mode_directive = resolve_mode_directive(
+            getattr(conversation, "behavior_mode", None),
+            getattr(preference, "custom_modes", None) if preference else None,
+        )
+        if _mode_directive:
+            system_instruction += f"\n\n{_mode_directive}"
+    except Exception as e:
+        logger.warning("Failed to apply behavior mode: %s", e)
 
     # --- 1b. Always inject active context library entries ---
     # This gives the agent proactive awareness of the knowledge base,
@@ -1498,13 +1543,17 @@ async def run_chat(
                     ),
                 },
             ]
+            # Budget must cover a full rewrite of the original answer, otherwise
+            # a long but correct response gets truncated into a worse one.
+            # ~3 chars/token + headroom; floor at 1500.
+            _correction_budget = max(1500, int(len(assistant_content) / 3) + 500)
             _verify_req = ChatRequest(
                 messages=_verify_msgs,
                 model=model,
                 temperature=0.1,
                 stream=True,
                 tools=None,
-                max_tokens=500,
+                max_tokens=_correction_budget,
             )
 
             _corrected = ""

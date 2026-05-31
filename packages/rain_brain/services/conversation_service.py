@@ -30,6 +30,7 @@ class ConversationService:
         self,
         title: str | None = None,
         persona: str = "drizzle",
+        behavior_mode: str | None = None,
     ) -> Conversation:
         """Create a new conversation for the default user."""
         now = datetime.now(UTC)
@@ -37,6 +38,7 @@ class ConversationService:
             user_id=DEFAULT_USER_ID,
             title=title,
             persona=persona,
+            behavior_mode=behavior_mode,
             created_at=now,
             updated_at=now,
             deleted_at=None,
@@ -80,6 +82,7 @@ class ConversationService:
             user_id=conversation.user_id,
             title=conversation.title,
             persona=getattr(conversation, "persona", "drizzle"),
+            behavior_mode=getattr(conversation, "behavior_mode", None),
             auto_skills=conversation.auto_skills,
             enabled_skills=conversation.enabled_skills,
             created_at=conversation.created_at,
@@ -129,6 +132,7 @@ class ConversationService:
                 user_id=conv.user_id,
                 title=conv.title,
                 persona=getattr(conv, "persona", "drizzle"),
+                behavior_mode=getattr(conv, "behavior_mode", None),
                 auto_skills=conv.auto_skills,
                 enabled_skills=conv.enabled_skills,
                 created_at=conv.created_at,
@@ -159,6 +163,7 @@ class ConversationService:
         conversation_id: UUID,
         title: str | None = None,
         persona: str | None = None,
+        behavior_mode: str | None = None,
         auto_skills: bool | None = None,
         enabled_skills: list[str] | None = None,
     ) -> ConversationResponse | None:
@@ -178,6 +183,9 @@ class ConversationService:
 
         if persona is not None:
             conversation.persona = persona
+
+        if behavior_mode is not None:
+            conversation.behavior_mode = behavior_mode
 
         if auto_skills is not None:
             conversation.auto_skills = auto_skills
@@ -202,6 +210,7 @@ class ConversationService:
             user_id=conversation.user_id,
             title=conversation.title,
             persona=getattr(conversation, "persona", "drizzle"),
+            behavior_mode=getattr(conversation, "behavior_mode", None),
             auto_skills=conversation.auto_skills,
             enabled_skills=conversation.enabled_skills,
             created_at=conversation.created_at,

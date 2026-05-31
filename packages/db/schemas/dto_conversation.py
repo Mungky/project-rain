@@ -66,12 +66,14 @@ class CreateConversationRequest(BaseModel):
     """Request to create a new conversation."""
     title: str | None = Field(default=None, max_length=200)
     persona: Literal["drizzle", "shower", "storm"] = "drizzle"
+    behavior_mode: str | None = Field(default=None, max_length=40)
 
 
 class UpdateConversationRequest(BaseModel):
     """Request to update conversation settings."""
     title: str | None = Field(default=None, max_length=200)
     persona: Literal["drizzle", "shower", "storm"] | None = None
+    behavior_mode: str | None = Field(default=None, max_length=40)
     auto_skills: bool | None = None
     enabled_skills: list[str] | None = None
 
@@ -100,6 +102,7 @@ class Conversation(BaseModel):
     user_id: UUID
     title: str | None
     persona: Literal["drizzle", "shower", "storm"] = "drizzle"
+    behavior_mode: str | None = None
     auto_skills: bool = True
     enabled_skills: list[str] = Field(default_factory=list)
     created_at: UTCDatetime
@@ -113,6 +116,7 @@ class ConversationResponse(BaseModel):
     user_id: UUID
     title: str | None
     persona: Literal["drizzle", "shower", "storm"] = "drizzle"
+    behavior_mode: str | None = None
     auto_skills: bool = True
     enabled_skills: list[str] = Field(default_factory=list)
     created_at: UTCDatetime

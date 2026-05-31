@@ -6,9 +6,12 @@ import { cn } from "@/lib/utils";
 import { useSendMessage } from "@/hooks/use-send-message";
 import { useComposerStore } from "@/stores/composer-store";
 import { usePersonaStore } from "@/stores/persona-store";
+import { useModeStore } from "@/stores/mode-store";
 import { useStreamingStore } from "@/stores/streaming-store";
 import { useUpdateConversation } from "@/hooks/use-conversations";
+import { useModes } from "@/hooks/use-modes";
 import { PersonaSelector } from "./persona-selector";
+import { ModeSelector } from "./mode-selector";
 import { SlashCommandMenu } from "./slash-command-menu";
 import { filterCommands, executeCommand, type CommandContext } from "@/lib/slash-commands";
 import type { Persona } from "@/lib/api-types";
@@ -40,6 +43,8 @@ export function Composer({
   const router = useRouter();
   const { draft, setDraft, shouldFocus, clearFocusRequest } = useComposerStore();
   const { selectedPersona, setSelectedPersona, activeModels } = usePersonaStore();
+  const { selectedMode, setSelectedMode } = useModeStore();
+  const { data: modesData } = useModes();
   const updateConv = useUpdateConversation(conversationId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +81,13 @@ export function Composer({
   const handlePersonaChange = (persona: Persona) => {
     setSelectedPersona(persona);
     updateConv.mutate({ persona });
+  };
+
+  const modeOptions = modesData?.modes ?? [{ key: "default", label: "Default", subtitle: "Persona default", builtin: true }];
+
+  const handleModeChange = (mode: string) => {
+    setSelectedMode(mode);
+    updateConv.mutate({ behavior_mode: mode });
   };
 
   useEffect(() => {
@@ -353,6 +365,13 @@ export function Composer({
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Behavior Mode Selector */}
+            <ModeSelector
+              value={selectedMode}
+              modes={modeOptions}
+              onChange={handleModeChange}
+            />
+
             {/* Persona Selector */}
             <PersonaSelector
               value={effectivePersona}

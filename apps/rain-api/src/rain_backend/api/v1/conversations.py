@@ -37,6 +37,7 @@ async def create_conversation(
     conversation = await service.create_conversation(
         title=body.title,
         persona=body.persona,
+        behavior_mode=body.behavior_mode,
     )
     
     return ConversationCreatedResponse(
@@ -111,6 +112,7 @@ async def update_conversation(
         conversation_id=path.conversation_id,
         title=body.title,
         persona=body.persona,
+        behavior_mode=body.behavior_mode,
         auto_skills=body.auto_skills,
         enabled_skills=body.enabled_skills,
     )

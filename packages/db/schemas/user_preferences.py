@@ -31,6 +31,12 @@ class UserPreference(Base, UUIDPKMixin, TimestampMixin):
         server_default=text("'{}'::jsonb"),
         comment="Encrypted/raw API keys for hosted providers.",
     )
+    custom_modes: Mapped[list | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        server_default=text("'[]'::jsonb"),
+        comment="User-defined behavior modes: [{key,label,directive}].",
+    )
 
     user: Mapped["User"] = relationship(back_populates="preference")
 

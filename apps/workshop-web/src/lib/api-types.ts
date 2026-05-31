@@ -188,14 +188,35 @@ export interface UserPreferencesResponse {
   };
   custom_system_prompt: string | null;
   hidden_models: string[];
+  custom_modes: CustomMode[];
 }
 
 export type Persona = "drizzle" | "shower" | "storm";
+
+/** A user-defined behavior mode. */
+export interface CustomMode {
+  key: string;
+  label: string;
+  directive: string;
+}
+
+/** A selectable behavior mode (built-in preset or custom). */
+export interface ModeOption {
+  key: string;
+  label: string;
+  subtitle: string;
+  builtin: boolean;
+}
+
+export interface ModesResponse {
+  modes: ModeOption[];
+}
 
 export interface ConversationResponse {
   id: string;
   title: string | null;
   persona: Persona;
+  behavior_mode?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -205,6 +226,7 @@ export interface ConversationDetailResponse {
   user_id: string;
   title: string | null;
   persona: Persona;
+  behavior_mode?: string | null;
   auto_skills: boolean;
   enabled_skills: string[];
   messages: MessageResponse[];

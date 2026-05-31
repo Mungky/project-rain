@@ -6,16 +6,22 @@ from typing import AsyncIterator
 import httpx
 from rain_brain.providers.base import Provider, ChatRequest, ChatChunk
 from rain_brain.config import brain_settings
+from rain_brain.skills.executor import normalize_tool_name
 
 
 def _parse_xml_tool_calls(xml: str) -> list[dict]:
-    """Parse Claude-style <function_calls> XML into tool call dicts."""
+    """Parse Claude-style <function_calls> XML into tool call dicts.
+
+    Tolerant of single- or double-quoted attributes (cloud models are
+    inconsistent) and normalizes the tool name to a canonical registry name
+    so a near-miss like web_search resolves to web-search-searxng.
+    """
     results = []
-    for m in re.finditer(r'<invoke\s+name="([^"]+)">(.*?)</invoke>', xml, re.DOTALL):
-        tool_name = m.group(1)
+    for m in re.finditer(r'<invoke\s+name=["\']([^"\']+)["\']\s*>(.*?)</invoke>', xml, re.DOTALL):
+        tool_name = normalize_tool_name(m.group(1).strip())
         args: dict = {}
-        for p in re.finditer(r'<parameter\s+name="([^"]+)">(.*?)</parameter>', m.group(2), re.DOTALL):
-            args[p.group(1)] = p.group(2).strip()
+        for p in re.finditer(r'<parameter\s+name=["\']([^"\']+)["\']\s*>(.*?)</parameter>', m.group(2), re.DOTALL):
+            args[p.group(1).strip()] = p.group(2).strip()
         results.append({"name": tool_name, "args": args})
     return results
 
@@ -262,13 +268,18 @@ class OllamaProvider:
                                 buf = buf[start:]
                             break
                         end += len("</function_calls>")
-                        # Emit text before the XML block
+                        # Emit text before the XML block, minus any code-fence
+                        # marker the model wrapped the tool call in (```xml etc.)
                         if start > 0:
-                            yield ChatChunk(type="token", data=buf[:start])
+                            pre = re.sub(r"\n?```[a-zA-Z0-9]*[ \t]*\n?$", "", buf[:start])
+                            if pre:
+                                yield ChatChunk(type="token", data=pre)
                         # Convert XML to tool_call chunks
                         for tc in _parse_xml_tool_calls(buf[start:end]):
                             yield ChatChunk(type="tool_call", data=tc)
                         buf = buf[end:]
+                        # Drop a dangling closing fence left over from the wrapper
+                        buf = re.sub(r"^[ \t]*```[ \t]*\n?", "", buf)
                         
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 503:

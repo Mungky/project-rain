@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
 import { apiGet, apiPatch } from "@/lib/api-client";
-import type { UserPreferencesResponse, UsageResponse, UsagePeriod } from "@/lib/api-types";
+import type { UserPreferencesResponse, UsageResponse, UsagePeriod, CustomMode } from "@/lib/api-types";
 
 export interface UpdatePreferencesPayload {
   providers?: Record<string, { enabled?: boolean; key?: string; base_url?: string }>;
   custom_system_prompt?: string | null;
   hidden_models?: string[];
+  custom_modes?: CustomMode[];
 }
 
 export const preferenceKeys = {

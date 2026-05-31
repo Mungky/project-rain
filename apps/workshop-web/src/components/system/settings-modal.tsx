@@ -27,7 +27,8 @@ import {
   useUpdateModelTags,
 } from "@/hooks/use-prompts";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Persona, ModelTag } from "@/lib/api-types";
+import { modeKeys } from "@/hooks/use-modes";
+import type { Persona, ModelTag, CustomMode } from "@/lib/api-types";
 import { MODEL_TAG_LABELS, getTagsForPersona } from "@/lib/api-types";
 import {
   Plus,
@@ -111,6 +112,40 @@ export function SettingsModal() {
     if (baselinePrompt !== prefs?.custom_system_prompt) {
       updatePrefs.mutate({ custom_system_prompt: baselinePrompt });
     }
+  };
+
+  // Custom behavior modes state
+  const [customModes, setCustomModes] = useState<CustomMode[]>(prefs?.custom_modes || []);
+  const [newModeLabel, setNewModeLabel] = useState("");
+  const [newModeDirective, setNewModeDirective] = useState("");
+
+  useEffect(() => {
+    if (prefs?.custom_modes) setCustomModes(prefs.custom_modes);
+  }, [prefs?.custom_modes]);
+
+  const persistModes = (modes: CustomMode[]) => {
+    setCustomModes(modes);
+    updatePrefs.mutate(
+      { custom_modes: modes },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: modeKeys.all }) }
+    );
+  };
+
+  const handleAddMode = () => {
+    const label = newModeLabel.trim();
+    const directive = newModeDirective.trim();
+    if (!label || !directive) return;
+    const base = "custom-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    let key = base || `custom-${Date.now()}`;
+    const existing = new Set(customModes.map((m) => m.key));
+    while (existing.has(key)) key = `${base}-${Math.floor(Math.random() * 1000)}`;
+    persistModes([...customModes, { key, label, directive }]);
+    setNewModeLabel("");
+    setNewModeDirective("");
+  };
+
+  const handleDeleteMode = (key: string) => {
+    persistModes(customModes.filter((m) => m.key !== key));
   };
 
   type ProviderName = "anthropic" | "openai" | "google" | "ollama";
@@ -745,9 +780,57 @@ export function SettingsModal() {
                       onChange={(e) => setBaselinePrompt(e.target.value)}
                       onBlur={handleSaveBaseline}
                       placeholder="Enter global baseline instructions..."
-                      className="w-full h-72 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white/80 placeholder:text-white/20 resize-none focus:outline-none focus:border-white/20 transition-all font-mono leading-relaxed"
+                      className="w-full h-48 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white/80 placeholder:text-white/20 resize-none focus:outline-none focus:border-white/20 transition-all font-mono leading-relaxed"
                     />
                     <p className="text-[10px] text-white/20 uppercase tracking-widest text-center italic">Changes auto-sync on blur</p>
+
+                    {/* Custom Behavior Modes */}
+                    <div className="space-y-1 pt-4 border-t border-white/10">
+                      <h3 className="text-lg font-semibold text-white">Custom Behavior Modes</h3>
+                      <p className="text-xs text-white/30 uppercase tracking-widest">Switchable stances (alongside built-ins: Diskusi, Guru, Mentor, Teman)</p>
+                    </div>
+
+                    {customModes.length > 0 && (
+                      <div className="space-y-2">
+                        {customModes.map((m) => (
+                          <div key={m.key} className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-xl p-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-white">{m.label}</p>
+                              <p className="text-[11px] text-white/40 leading-relaxed whitespace-pre-wrap line-clamp-3">{m.directive}</p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteMode(m.key)}
+                              className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                              title="Delete mode"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="space-y-2 bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+                      <input
+                        value={newModeLabel}
+                        onChange={(e) => setNewModeLabel(e.target.value)}
+                        placeholder="Mode name (e.g. Brutal Reviewer)"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white/80 placeholder:text-white/20 focus:outline-none focus:border-white/20 transition-all"
+                      />
+                      <textarea
+                        value={newModeDirective}
+                        onChange={(e) => setNewModeDirective(e.target.value)}
+                        placeholder="How should Rain behave in this mode? e.g. 'Critique my work harshly and without flattery; only point out flaws.'"
+                        className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white/80 placeholder:text-white/20 resize-none focus:outline-none focus:border-white/20 transition-all leading-relaxed"
+                      />
+                      <Button
+                        onClick={handleAddMode}
+                        disabled={!newModeLabel.trim() || !newModeDirective.trim()}
+                        className="w-full"
+                      >
+                        <Plus size={14} className="mr-1.5" /> Add Mode
+                      </Button>
+                    </div>
                   </motion.div>
                 )}
 
