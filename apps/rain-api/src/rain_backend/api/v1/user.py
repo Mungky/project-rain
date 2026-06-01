@@ -125,6 +125,7 @@ class PreferencesUpdate(BaseModel):
     custom_system_prompt: str | None = None
     hidden_models: list[str] | None = None
     custom_modes: list[CustomMode] | None = None
+    default_behavior_mode: str | None = None
 
 
 class PreferencesResponse(BaseModel):
@@ -132,6 +133,7 @@ class PreferencesResponse(BaseModel):
     custom_system_prompt: str | None
     hidden_models: list[str] = []
     custom_modes: list[CustomMode] = []
+    default_behavior_mode: str = "default"
 
 
 class ModeOption(BaseModel):
@@ -191,6 +193,7 @@ async def get_preferences(db: AsyncSession = Depends(get_db)) -> PreferencesResp
         custom_system_prompt=pref.custom_system_prompt,
         hidden_models=hidden,
         custom_modes=list(pref.custom_modes or []),
+        default_behavior_mode=raw.get("default_behavior_mode") or "default",
     )
 
 
@@ -234,6 +237,10 @@ async def update_preferences(
             m.model_dump() for m in body.custom_modes if m.key and m.key not in BUILTIN_MODES
         ]
 
+    if body.default_behavior_mode is not None:
+        # Stored in the api_keys blob (like hidden_models) to avoid a migration.
+        providers["default_behavior_mode"] = body.default_behavior_mode
+
     pref.api_keys = providers
     await db.commit()
 
@@ -243,6 +250,7 @@ async def update_preferences(
         custom_system_prompt=pref.custom_system_prompt,
         hidden_models=hidden,
         custom_modes=list(pref.custom_modes or []),
+        default_behavior_mode=providers.get("default_behavior_mode") or "default",
     )
 
 

@@ -7,6 +7,7 @@ export interface UpdatePreferencesPayload {
   custom_system_prompt?: string | null;
   hidden_models?: string[];
   custom_modes?: CustomMode[];
+  default_behavior_mode?: string;
 }
 
 export const preferenceKeys = {

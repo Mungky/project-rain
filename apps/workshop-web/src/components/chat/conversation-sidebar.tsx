@@ -6,7 +6,6 @@ import { useConversations, useCreateConversation, useDeleteConversation } from "
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { usePersonaStore } from "@/stores/persona-store";
-import { useModeStore } from "@/stores/mode-store";
 import { useStreamingStore } from "@/stores/streaming-store";
 import { useShallow } from "zustand/react/shallow";
 import { useUIStore } from "@/stores/ui-store";
@@ -32,8 +31,7 @@ export function ConversationSidebar() {
 
   const handleNewChat = () => {
     const persona = usePersonaStore.getState().selectedPersona;
-    const behavior_mode = useModeStore.getState().selectedMode;
-    createMutation.mutate({ persona, behavior_mode }, {
+    createMutation.mutate({ persona }, {
       onSuccess: (conv) => {
         router.push(`/chat/${conv.id}`);
       },

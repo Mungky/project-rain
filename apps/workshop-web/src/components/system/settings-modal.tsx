@@ -27,7 +27,8 @@ import {
   useUpdateModelTags,
 } from "@/hooks/use-prompts";
 import { useQueryClient } from "@tanstack/react-query";
-import { modeKeys } from "@/hooks/use-modes";
+import { useModes, modeKeys } from "@/hooks/use-modes";
+import { cn } from "@/lib/utils";
 import type { Persona, ModelTag, CustomMode } from "@/lib/api-types";
 import { MODEL_TAG_LABELS, getTagsForPersona } from "@/lib/api-types";
 import {
@@ -114,7 +115,9 @@ export function SettingsModal() {
     }
   };
 
-  // Custom behavior modes state
+  // Behavior modes state
+  const { data: modesData } = useModes();
+  const activeMode = prefs?.default_behavior_mode ?? "default";
   const [customModes, setCustomModes] = useState<CustomMode[]>(prefs?.custom_modes || []);
   const [newModeLabel, setNewModeLabel] = useState("");
   const [newModeDirective, setNewModeDirective] = useState("");
@@ -813,6 +816,34 @@ export function SettingsModal() {
                       className="w-full h-48 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white/80 placeholder:text-white/20 resize-none focus:outline-none focus:border-white/20 transition-all font-mono leading-relaxed"
                     />
                     <p className="text-[10px] text-white/20 uppercase tracking-widest text-center italic">Changes auto-sync on blur</p>
+
+                    {/* Active Behavior Mode (global default) */}
+                    <div className="space-y-3 pt-4 border-t border-white/10">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-white">Behavior Mode</h3>
+                        <p className="text-xs text-white/30 uppercase tracking-widest">Gaya Rain di semua chat (default / diskusi / guru / mentor / teman)</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(modesData?.modes ?? [{ key: "default", label: "Default", subtitle: "", builtin: true }]).map((m) => {
+                          const isActive = activeMode === m.key;
+                          return (
+                            <button
+                              key={m.key}
+                              onClick={() => updatePrefs.mutate({ default_behavior_mode: m.key })}
+                              title={m.subtitle}
+                              className={cn(
+                                "px-4 py-2 rounded-full border text-xs font-medium transition-all",
+                                isActive
+                                  ? "bg-white text-black border-white"
+                                  : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:border-white/20"
+                              )}
+                            >
+                              {m.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                     {/* Custom Behavior Modes */}
                     <div className="space-y-1 pt-4 border-t border-white/10">

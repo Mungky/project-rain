@@ -422,8 +422,12 @@ async def _run_shower(
     # Behavior mode (same stance as the other personas)
     try:
         from rain_brain.orchestrator.behavior_modes import resolve_mode_directive
+        _default_mode = None
+        if preference and getattr(preference, "api_keys", None):
+            _default_mode = preference.api_keys.get("default_behavior_mode")
+        _mode_key = behavior_mode if (behavior_mode and behavior_mode != "default") else _default_mode
         _mode_directive = resolve_mode_directive(
-            behavior_mode,
+            _mode_key,
             getattr(preference, "custom_modes", None) if preference else None,
         )
         if _mode_directive:
@@ -803,8 +807,14 @@ async def run_chat(
     # Injected directly into the system prompt (model-independent, no tool-calling).
     try:
         from rain_brain.orchestrator.behavior_modes import resolve_mode_directive
+        _conv_mode = getattr(conversation, "behavior_mode", None)
+        _default_mode = None
+        if preference and getattr(preference, "api_keys", None):
+            _default_mode = preference.api_keys.get("default_behavior_mode")
+        # Per-conversation override wins; otherwise the user's global default.
+        _mode_key = _conv_mode if (_conv_mode and _conv_mode != "default") else _default_mode
         _mode_directive = resolve_mode_directive(
-            getattr(conversation, "behavior_mode", None),
+            _mode_key,
             getattr(preference, "custom_modes", None) if preference else None,
         )
         if _mode_directive:

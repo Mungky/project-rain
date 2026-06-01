@@ -189,6 +189,7 @@ export interface UserPreferencesResponse {
   custom_system_prompt: string | null;
   hidden_models: string[];
   custom_modes: CustomMode[];
+  default_behavior_mode: string;
 }
 
 export type Persona = "drizzle" | "shower" | "storm";
