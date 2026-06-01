@@ -242,8 +242,9 @@ async def _generate_title_background(
                     {
                         "role": "system",
                         "content": (
-                            "Generate a concise title (max 6 words) for a conversation. "
-                            "Output ONLY the title — no quotes, no punctuation at the end, no explanation. "
+                            "Summarize the TOPIC of this exchange as a short title (max 6 words). "
+                            "Capture the subject matter, do NOT copy the user's question verbatim. "
+                            "Output ONLY the title — no quotes, no trailing punctuation, no explanation. "
                             "Match the language of the user's message."
                         ),
                     },
@@ -252,10 +253,14 @@ async def _generate_title_background(
                         "content": f"User: {user_message[:300]}\nAssistant: {assistant_content[:200]}",
                     },
                 ],
-                model=brain_settings.ollama_default_model,
-                temperature=0.1,
+                # Use the proven secretary model — the default (kimi) was failing
+                # and silently falling back to a truncated first question.
+                model=brain_settings.ollama_extraction_model,
+                temperature=0.2,
                 stream=False,
-                max_tokens=20,
+                # Headroom for thinking models (glm) that "reason" before emitting
+                # the title; reasoning tokens are separated, only content is kept.
+                max_tokens=200,
             )
             title_text = ""
             async for chunk in ollama.chat(req):

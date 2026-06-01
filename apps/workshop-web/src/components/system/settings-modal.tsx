@@ -203,10 +203,25 @@ export function SettingsModal() {
     });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      uploadDoc.mutate(file);
+  const [bulkUpload, setBulkUpload] = useState<{ done: number; total: number; errors: string[] } | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-selecting the same files later
+    if (files.length === 0) return;
+
+    setBulkUpload({ done: 0, total: files.length, errors: [] });
+    const errors: string[] = [];
+    // Sequential — the local embedding sidecar is CPU-bound; parallel uploads
+    // would thrash it. Each failure is collected so one bad file doesn't abort.
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]!;
+      try {
+        await uploadDoc.mutateAsync(f);
+      } catch (err) {
+        errors.push(`${f.name}: ${err instanceof Error ? err.message : "failed"}`);
+      }
+      setBulkUpload({ done: i + 1, total: files.length, errors: [...errors] });
     }
   };
 
@@ -721,6 +736,8 @@ export function SettingsModal() {
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileUpload}
+                        multiple
+                        accept=".pdf,.md,.txt,.csv,.docx,.doc,.xlsx,.xls,.pptx,.ppt"
                         className="hidden"
                       />
                       <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto text-white/20 group-hover:scale-110 transition-transform">
@@ -728,9 +745,22 @@ export function SettingsModal() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-white/80">Inject Knowledge</p>
-                        <p className="text-[10px] text-white/20 uppercase tracking-widest">PDF, MD, TXT (MAX 10MB)</p>
+                        <p className="text-[10px] text-white/20 uppercase tracking-widest">PDF, DOCX, XLSX, MD, TXT — pilih banyak file (MAX 10MB/file)</p>
                       </div>
                     </div>
+
+                    {bulkUpload && (
+                      <div className="text-[11px] text-white/50 space-y-1 px-1">
+                        <p>
+                          {bulkUpload.done < bulkUpload.total
+                            ? `Mengunggah ${bulkUpload.done}/${bulkUpload.total}…`
+                            : `Selesai: ${bulkUpload.total - bulkUpload.errors.length}/${bulkUpload.total} berhasil`}
+                        </p>
+                        {bulkUpload.errors.map((err, i) => (
+                          <p key={i} className="text-rose-400/80 break-words">⚠ {err}</p>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       {docsLoading ? (
