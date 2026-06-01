@@ -48,13 +48,32 @@ async def put_message_feedback(
     message_id: UUID,
     body: MessageFeedbackRequest,
     db: AsyncSession = Depends(get_db),
+    providers: dict = Depends(get_providers),
+    qdrant_client: AsyncQdrantClient = Depends(get_qdrant),
+    db_engine: AsyncEngine = Depends(get_db_engine),
 ) -> Message:
-    """Update feedback for a message."""
+    """Update feedback for a message and feed it into the personalization loop."""
     service = MessageService(db)
     message = await service.update_feedback(message_id, body.feedback)
     if message is None:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Message not found")
+
+    # Close the learning loop in the background so the click returns instantly:
+    # 👍 → save as a high-quality few-shot example; 👎 → learn a style preference.
+    if body.feedback in (1, -1):
+        try:
+            merged = await _providers_with_db_overrides(providers, db)
+            from rain_brain.services.feedback_loop import process_feedback_background
+            from rain_brain.orchestrator.chat_mode import _fire_and_forget
+            _fire_and_forget(
+                process_feedback_background(
+                    merged, db_engine, qdrant_client, message_id, body.feedback
+                )
+            )
+        except Exception as e:
+            logger.warning("feedback loop dispatch failed (non-blocking): %s", e)
+
     return message
 
 
